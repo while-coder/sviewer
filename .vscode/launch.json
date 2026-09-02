@@ -1,0 +1,21 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "cppvsdbg",
+      "request": "launch",
+      "name": "Tauri Debug (dev) · Windows",
+      "preLaunchTask": "tauri:before:dev",
+      "program": "${workspaceFolder}/packages/app/src-tauri/target/debug/sviewer.exe",
+      "cwd": "${workspaceFolder}/packages/app/src-tauri"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Tauri Debug (dev) · macOS",
+      "preLaunchTask": "tauri:before:dev",
+      "program": "${workspaceFolder}/packages/app/src-tauri/target/debug/sviewer",
+      "cwd": "${workspaceFolder}/packages/app/src-tauri"
+    }
+  ]
+}

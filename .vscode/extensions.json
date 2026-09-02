@@ -1,0 +1,8 @@
+{
+  "recommendations": [
+    "rust-lang.rust-analyzer",
+    "vue.volar",
+    "ms-vscode.cpptools",
+    "vadimcn.vscode-lldb"
+  ]
+}

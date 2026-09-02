@@ -1,0 +1,59 @@
+/*
+ * 两窗口共用的基础样式：主题变量、文档基础、通用按钮。
+ * 主窗口（main.ts）与批量转换窗口（batch.ts）都引入，
+ * 组件各自的布局样式仍留在组件里。
+ */
+
+/* 主题变量：深色为默认，浅色经 data-theme='light' 覆盖（settings.ts 写入 <html data-theme>） */
+:root {
+  --fg: #e5e5e5;
+  --fg-muted: #999;
+  --bg: #161616;
+  --bar: #1f1f1f;
+  --border: #333;
+  --primary: #2d6cdf;
+  /* 悬停 / 浮层 / 按钮 / 棋盘格 */
+  --hover: rgba(255, 255, 255, 0.08);
+  --hover-strong: rgba(255, 255, 255, 0.14);
+  --overlay: rgba(18, 18, 18, 0.88);
+  --panel: rgba(20, 20, 20, 0.97);
+  --check-a: #1c1c1c;
+  --check-b: #232323;
+}
+:root[data-theme='light'] {
+  --fg: #1f1f1f;
+  --fg-muted: #777;
+  --bg: #f2f2f2;
+  --bar: #e9e9e9;
+  --border: #d0d0d0;
+  --primary: #2d6cdf;
+  --hover: rgba(0, 0, 0, 0.06);
+  --hover-strong: rgba(0, 0, 0, 0.12);
+  --overlay: rgba(250, 250, 250, 0.9);
+  --panel: rgba(246, 246, 246, 0.97);
+  --check-a: #e2e2e2;
+  --check-b: #ededed;
+}
+
+* { box-sizing: border-box; }
+html, body, #app { height: 100%; margin: 0; }
+body {
+  font: 13px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif;
+  color: var(--fg);
+  background: var(--bg);
+  user-select: none;
+  overflow: hidden;
+}
+
+.btn-primary {
+  background: var(--primary); border: none; border-radius: 7px;
+  color: #fff; cursor: pointer; font-size: 13px; padding: 6px 26px;
+}
+.btn-primary:hover { filter: brightness(1.1); }
+
+.ep-btn {
+  background: var(--hover); border: 1px solid var(--border); border-radius: 6px;
+  color: var(--fg); cursor: pointer; font-size: 12px; padding: 3px 10px;
+}
+.ep-btn:hover { background: var(--hover-strong); }
+.ep-btn:disabled { opacity: 0.35; cursor: default; }

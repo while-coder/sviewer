@@ -1,0 +1,24 @@
+{
+  "name": "sviewer-monorepo",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "dev": "pnpm --filter @sviewer/app dev",
+    "dev:app": "pnpm --filter @sviewer/app dev",
+    "build:app": "pnpm --filter @sviewer/app windows:build",
+    "build:app:mac": "pnpm --filter @sviewer/app macos:build",
+    "sync:icons": "node scripts/sync-icons.js",
+    "tauri": "pnpm --filter @sviewer/app tauri"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "vite": "catalog:"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}

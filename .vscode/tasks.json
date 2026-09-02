@@ -1,0 +1,45 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "ui:kill",
+      "type": "shell",
+      "command": "npx kill-port 8386",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "ui:dev",
+      "type": "shell",
+      "isBackground": true,
+      "command": "pnpm",
+      "args": ["vite", "dev", "--port", "8386"],
+      "options": { "cwd": "${workspaceFolder}/packages/app" },
+      "problemMatcher": {
+        "owner": "vite",
+        "pattern": { "regexp": "" },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*",
+          "endsPattern": "(ready in|Local:).*"
+        }
+      }
+    },
+    {
+      "label": "rust:build:dev",
+      "type": "shell",
+      "command": "cargo",
+      "args": [
+        "build",
+        "--manifest-path=${workspaceFolder}/packages/app/src-tauri/Cargo.toml",
+        "--no-default-features"
+      ],
+      "problemMatcher": ["$rustc"]
+    },
+    {
+      "label": "tauri:before:dev",
+      "dependsOn": ["ui:kill", "rust:build:dev", "ui:dev"],
+      "dependsOrder": "sequence"
+    }
+  ]
+}
