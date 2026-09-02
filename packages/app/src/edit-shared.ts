@@ -16,6 +16,7 @@ export const SAVE_FILTERS = [
   { name: 'TGA 图片', extensions: ['tga'] },
   { name: 'PPM 图片', extensions: ['ppm'] },
   { name: 'QOI 图片', extensions: ['qoi'] },
+  { name: 'EXR 图片', extensions: ['exr'] },
   { name: 'AVIF 图片（较慢）', extensions: ['avif'] },
   { name: 'Farbfeld 图片', extensions: ['ff'] },
 ]
@@ -34,6 +35,7 @@ export const EXT_FORMAT: Record<string, SaveFormat> = {
   tga: 'tga',
   ppm: 'ppm',
   qoi: 'qoi',
+  exr: 'exr',
   ff: 'ff',
   avif: 'avif',
 }

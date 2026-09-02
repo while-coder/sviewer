@@ -2,3 +2,6 @@ dist/
 node_modules/
 packages/app/src-tauri/target/
 packages/app/src-tauri/gen/
+
+# 签名私钥，仅本地保留，勿提交
+/secrets/

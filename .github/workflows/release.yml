@@ -1,0 +1,65 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      version: ${{ steps.release.outputs.version }}
+      notes: ${{ steps.release.outputs.notes }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - id: release
+        uses: while-coder/workflows/.github/actions/resolve-release-info@main
+        with:
+          tag-prefix: v
+          package-json: package.json
+          changelog: CHANGELOG.md
+
+  prepare-release:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Recreate GitHub Release
+        uses: while-coder/workflows/.github/actions/recreate-github-release@main
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ needs.check.outputs.tag }}
+          title: SViewer v${{ needs.check.outputs.version }}
+          notes: ${{ needs.check.outputs.notes }}
+
+  release-desktop:
+    needs: [check, prepare-release]
+    uses: while-coder/workflows/.github/workflows/tauri-desktop-release.yml@main
+    with:
+      project-path: packages/app
+      cargo-lock-path: packages/app/src-tauri/Cargo.lock
+      cargo-target-path: packages/app/src-tauri/target
+      tag-name: ${{ needs.check.outputs.tag }}
+      release-name: SViewer v${{ needs.check.outputs.version }}
+      release-body: ${{ needs.check.outputs.notes }}
+    secrets: inherit
+
+  publish-manifest:
+    needs: [check, release-desktop]
+    if: ${{ !cancelled() && needs.release-desktop.result == 'success' }}
+    uses: while-coder/workflows/.github/workflows/tauri-updater-manifest.yml@main
+    with:
+      product-prefix: sviewer
+      tag-name: ${{ needs.check.outputs.tag }}
+      version: ${{ needs.check.outputs.version }}
+      release-notes: ${{ needs.check.outputs.notes }}
+    secrets: inherit

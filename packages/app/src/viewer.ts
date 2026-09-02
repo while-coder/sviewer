@@ -30,13 +30,13 @@ export interface ImageInfo {
   exif: ExifEntry[]
 }
 
-/** WebView 可直接渲染的扩展名（小写，不含点）。 */
+/** WebView 可直接渲染的扩展名（小写，不含点）。jpe/jfif 是 JPEG 别名。 */
 const WEB_NATIVE = new Set([
-  'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'ico', 'svg', 'avif',
+  'jpg', 'jpeg', 'jpe', 'jfif', 'png', 'gif', 'webp', 'bmp', 'ico', 'svg', 'avif',
 ])
 
-/** 需要 libheif（WASM）在前端解码的扩展名。Rust 的 image crate 不支持 HEIC。 */
-const HEIF_EXT = new Set(['heic', 'heif'])
+/** 需要 libheif（WASM）在前端解码的扩展名。Rust 的 image crate 不支持 HEIC。hif 是富士的 HEIF 容器。 */
+const HEIF_EXT = new Set(['heic', 'heif', 'hif'])
 
 /** 取扩展名（小写，不含点）。 */
 export function extOf(path: string): string {
@@ -276,8 +276,10 @@ export function decodeThumb(path: string, maxPx: number): Promise<string> {
   return invoke('decode_thumb', { path, maxPx })
 }
 
-/** 可直接改写原图的扩展名（heic 无编码器、svg 矢量、gif 动图会丢帧）。 */
-export const EDITABLE_EXT = new Set(['jpg', 'jpeg', 'png', 'webp', 'bmp', 'tiff', 'tif', 'avif'])
+/** 可直接改写原图的扩展名（heic 无编码器、svg 矢量、gif 动图会丢帧）。jpe/jfif 按 JPEG 写回。 */
+export const EDITABLE_EXT = new Set([
+  'jpg', 'jpeg', 'jpe', 'jfif', 'png', 'webp', 'bmp', 'tiff', 'tif', 'avif', 'tga', 'qoi', 'exr',
+])
 
 /** 该图片能否「保存到原图」（旋转/裁剪等编辑写回）。 */
 export function extSupportsEdit(path: string): boolean {

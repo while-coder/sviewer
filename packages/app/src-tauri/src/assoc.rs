@@ -12,8 +12,9 @@
 
 /// 受支持的扩展名（带点、小写），与 lib.rs 的 SUPPORTED_EXT 保持一致。
 const EXTS: &[&str] = &[
-    ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".ico", ".tiff", ".tif", ".avif", ".heic",
-    ".heif",
+    ".jpg", ".jpeg", ".jpe", ".jfif", ".png", ".gif", ".webp", ".bmp", ".ico", ".svg", ".tiff",
+    ".tif", ".avif", ".heic", ".heif", ".hif", ".tga", ".pbm", ".pgm", ".ppm", ".pnm", ".dds",
+    ".hdr", ".exr", ".qoi",
 ];
 
 /// ProgID：给系统看的关联标识名。
@@ -106,23 +107,95 @@ mod imp {
         Ok(())
     }
 
-    /// ProgID → 应用显示名：SViewer 自己直接给名，其余读描述 / FriendlyTypeName，兜底用 ProgID 原文。
+    /// 展开间接字符串 "@C:\path\shell32.dll,-102" → 资源里的本地化文本（失败返回 None）。
+    fn expand_indirect(s: &str) -> Option<String> {
+        use windows::core::PCWSTR;
+        use windows::Win32::UI::Shell::SHLoadIndirectString;
+
+        let src: Vec<u16> = s.encode_utf16().chain(std::iter::once(0)).collect();
+        let mut buf = [0u16; 512];
+        // SAFETY：src 以 NUL 结尾，buf 为 512 长度的有效缓冲
+        let hr = unsafe { SHLoadIndirectString(PCWSTR::from_raw(src.as_ptr()), &mut buf, None) };
+        if hr.is_err() {
+            return None;
+        }
+        let len = buf.iter().position(|&c| c == 0).unwrap_or(buf.len());
+        let out = String::from_utf16_lossy(&buf[..len]);
+        let out = out.trim();
+        if out.is_empty() {
+            None
+        } else {
+            Some(out.to_string())
+        }
+    }
+
+    /// 描述性默认值（类型说明而非应用名），不直接显示。
+    fn looks_like_type_desc(v: &str) -> bool {
+        const MARKS: &[&str] = &["文件", "文档", "Document", "document", "File", "file"];
+        MARKS.iter().any(|m| v.contains(m))
+    }
+
+    /// ProgID → 应用显示名。依次取：
+    /// 1. FriendlyTypeName（最准，间接字符串 @dll,-id 先展开成「Windows 照片查看器」这类名字）；
+    /// 2. 默认值（排除「图像 (jpg) 文件」这类类型描述）；
+    /// 3. 打开命令里的 exe 名（BandiView / msedge 等）；
+    /// 4. 兜底 ProgID 原文。
     fn progid_app(progid: &str) -> String {
         if progid == PROG_ID {
             return "SViewer".into();
         }
         let root = RegKey::predef(HKEY_CLASSES_ROOT);
         if let Ok(k) = root.open_subkey(progid) {
-            for name in ["", "FriendlyTypeName"] {
-                if let Ok(v) = k.get_value::<String, _>(name) {
-                    // "C:\...,-3" 形式的间接字符串还原不了，跳过取下一个候选
-                    if !v.is_empty() && !v.starts_with('@') {
-                        return v;
+            if let Ok(v) = k.get_value::<String, _>("FriendlyTypeName") {
+                if !v.is_empty() {
+                    let name = if v.starts_with('@') { expand_indirect(&v) } else { Some(v) };
+                    if let Some(name) = name {
+                        return name;
                     }
                 }
             }
+            if let Ok(v) = k.get_value::<String, _>("") {
+                if !v.is_empty() && !v.starts_with('@') && !looks_like_type_desc(&v) {
+                    return v;
+                }
+            }
+            // UWP 等应用 FriendlyTypeName 全是间接字符串：从打开命令里抠 exe 名
+            let cmd = k
+                .open_subkey("shell\\open\\command")
+                .ok()
+                .and_then(|c| c.get_value::<String, _>("").ok());
+            if let Some(app) = cmd.as_deref().and_then(exe_name_from_command) {
+                return app;
+            }
         }
         progid.into()
+    }
+
+    /// 从 shell\open\command 命令行里提取 exe 显示名（去引号、去参数、去 .exe 后缀）。
+    fn exe_name_from_command(cmd: &str) -> Option<String> {
+        let first = if let Some(rest) = cmd.strip_prefix('"') {
+            rest.split('"').next()?
+        } else {
+            cmd.split_whitespace().next()?
+        };
+        let name = PathBuf::from(first)
+            .file_stem()
+            .map(|s| s.to_string_lossy().into_owned())
+            .unwrap_or_else(|| first.to_string());
+        if name.is_empty() {
+            None
+        } else {
+            Some(name)
+        }
+    }
+
+    /// 该字符串是否为「真的能打开文件」的 ProgID：存在且带 shell\open\command。
+    /// 防止把 HKCR\<ext> 默认值里的描述文本（如「图像 (jpg) 文件」）当成应用名。
+    fn is_valid_progid(progid: &str) -> bool {
+        RegKey::predef(HKEY_CLASSES_ROOT)
+            .open_subkey(progid)
+            .map(|k| k.open_subkey("shell\\open\\command").is_ok())
+            .unwrap_or(false)
     }
 
     /// 查询各扩展名的当前默认应用。
@@ -130,20 +203,34 @@ mod imp {
         EXTS
             .iter()
             .map(|ext| {
-                // 优先用户选择（设置 → 默认应用），没有再看 Classes\<ext> 默认值
                 let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+                let hkcr = RegKey::predef(HKEY_CLASSES_ROOT);
+                // 依次尝试：用户选择（设置 → 默认应用，最优先）→
+                // HKCR\<ext> 默认值（须是带打开命令的 ProgID）→ OpenWithProgids 候选
                 let user_choice = hkcu
                     .open_subkey(format!(
                         "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\FileExts\\{ext}\\UserChoice"
                     ))
-                    .and_then(|k| k.get_value::<String, _>("ProgId"));
+                    .and_then(|k| k.get_value::<String, _>("ProgId"))
+                    .ok();
+                let classes_default = hkcr
+                    .open_subkey(ext)
+                    .ok()
+                    .and_then(|k| k.get_value::<String, _>("").ok())
+                    .filter(|p| !p.is_empty());
                 let progid = match user_choice {
-                    Ok(p) => Some(p),
-                    Err(_) => RegKey::predef(HKEY_CLASSES_ROOT)
-                        .open_subkey(ext)
-                        .ok()
-                        .and_then(|k| k.get_value::<String, _>("").ok())
-                        .filter(|p| !p.is_empty()),
+                    Some(p) => Some(p),
+                    None => match classes_default.filter(|p| is_valid_progid(p)) {
+                        Some(p) => Some(p),
+                        None => hkcr
+                            .open_subkey(ext)
+                            .ok()
+                            .and_then(|k| k.open_subkey("OpenWithProgids").ok())
+                            .map(|owp| {
+                                owp.enum_keys().flatten().find(|pid| is_valid_progid(pid))
+                            })
+                            .flatten(),
+                    },
                 };
                 match progid {
                     Some(p) => AssocStatus {

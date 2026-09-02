@@ -16,13 +16,52 @@ mod assoc;
 mod native_heic;
 
 /// 受支持的图片扩展名（小写，不含点）。用于目录列举与启动参数识别。
+/// - jpe/jfif 是 JPEG 别名、hif 是 HEIF 容器，分别沿用 JPEG/HEIC 的解码通道；
+/// - svg 交给 WebView 渲染；
+/// - tga/pbm/pgm/ppm/pnm/dds/hdr/exr/qoi 由 image crate 解码（默认 feature 已带）。
 const SUPPORTED_EXT: &[&str] = &[
-    "jpg", "jpeg", "png", "gif", "webp", "bmp", "ico", "tiff", "tif", "avif", "heic", "heif",
+    "jpg", "jpeg", "jpe", "jfif", "png", "gif", "webp", "bmp", "ico", "svg", "tiff", "tif",
+    "avif", "heic", "heif", "hif", "tga", "pbm", "pgm", "ppm", "pnm", "dds", "hdr", "exr", "qoi",
 ];
 
 /// 启动时待打开的文件路径，前端 onMounted 取走一次后清空。
 #[derive(Default)]
 struct LaunchFile(Mutex<Option<String>>);
+
+/// 「允许多开」标记文件：%APPDATA%/com.while.sviewer/allow-multi-instance。
+/// 前端设置里开关时由 set_multi_instance 写/删；启动时按它决定是否注册
+/// single-instance 插件（localStorage 读不到，Rust 侧只认文件）。
+fn multi_instance_flag_path() -> Option<PathBuf> {
+    std::env::var("APPDATA")
+        .ok()
+        .map(|d| PathBuf::from(d).join("com.while.sviewer").join("allow-multi-instance"))
+}
+
+/// 当前是否允许多开。
+fn multi_instance_enabled() -> bool {
+    multi_instance_flag_path().is_some_and(|p| p.exists())
+}
+
+/// 设置「允许多开」：写/删标记文件，下次启动生效。
+#[tauri::command]
+fn set_multi_instance(enabled: bool) -> Result<(), String> {
+    let Some(p) = multi_instance_flag_path() else {
+        return Err("无法定位配置目录".into());
+    };
+    if let Some(dir) = p.parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    if enabled {
+        std::fs::File::create(&p).map_err(|e| format!("写入标记失败：{e}"))?;
+    } else {
+        match std::fs::remove_file(&p) {
+            Ok(()) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => return Err(format!("删除标记失败：{e}")),
+        }
+    }
+    Ok(())
+}
 
 #[derive(Serialize)]
 struct ExifEntry {
@@ -118,14 +157,18 @@ fn read_image_info(path: String) -> Result<ImageInfo, String> {
     let p = PathBuf::from(&path);
     let size = std::fs::metadata(&p).map(|m| m.len()).unwrap_or(0);
     let exif = read_exif(&p);
-    // HEIC 等 image crate 不认识的格式拿不到尺寸，回退用 EXIF 的 PixelX/YDimension
-    let (width, height) = match image::image_dimensions(&p) {
-        Ok(d) => d,
-        Err(_) => exif_dimensions(&exif),
+    // 按内容嗅探格式（jpe/jfif 等别名扩展名靠这一步识别），拿不到再退 EXIF 尺寸
+    let reader = image::ImageReader::open(&p)
+        .ok()
+        .and_then(|r| r.with_guessed_format().ok());
+    let fmt = reader.as_ref().and_then(|r| r.format());
+    let (width, height) = match reader.map(|r| r.into_dimensions()) {
+        Some(Ok(d)) => d,
+        _ => exif_dimensions(&exif),
     };
-    let format = image::ImageFormat::from_path(&p)
+    let format = fmt
         .map(|f| format!("{:?}", f).to_uppercase())
-        .unwrap_or_else(|_| {
+        .unwrap_or_else(|| {
             p.extension()
                 .and_then(|e| e.to_str())
                 .unwrap_or("?")
@@ -253,6 +296,7 @@ fn parse_format(format: &str) -> Result<image::ImageFormat, String> {
         "qoi" => image::ImageFormat::Qoi,
         "ff" => image::ImageFormat::Farbfeld,
         "avif" => image::ImageFormat::Avif,
+        "exr" => image::ImageFormat::OpenExr,
         _ => return Err(format!("不支持的保存格式：{format}")),
     })
 }
@@ -515,12 +559,15 @@ fn save_edits(path: String, edits: ImageEdits) -> Result<SaveOutcome, String> {
         .to_lowercase();
     // HEIC 无编码器、SVG 是矢量、GIF 动图会丢帧：前端禁用按钮，这里兜底拒绝
     let format = match ext.as_str() {
-        "jpg" | "jpeg" => "jpeg",
+        "jpg" | "jpeg" | "jpe" | "jfif" => "jpeg",
         "png" => "png",
         "webp" => "webp",
         "bmp" => "bmp",
         "tiff" | "tif" => "tiff",
         "avif" => "avif",
+        "tga" => "tga",
+        "qoi" => "qoi",
+        "exr" => "exr",
         _ => return Err(format!(".{ext} 格式不支持直接修改原图")),
     };
     let img = decode_any(&path)?;
@@ -620,7 +667,7 @@ fn decode_any(path: &str) -> Result<image::DynamicImage, String> {
         .and_then(|e| e.to_str())
         .unwrap_or("")
         .to_lowercase();
-    if ext == "heic" || ext == "heif" {
+    if ext == "heic" || ext == "heif" || ext == "hif" {
         let buf = native_heic::decode(path)?;
         if buf.len() < native_heic::HEADER_LEN {
             return Err("解码数据不完整".into());
@@ -631,7 +678,13 @@ fn decode_any(path: &str) -> Result<image::DynamicImage, String> {
             .ok_or_else(|| "解码数据长度不符".to_string())
             .map(Into::into)
     } else {
-        image::open(&p).map_err(|e| format!("解码失败：{e}"))
+        // 按内容嗅探格式：jpe/jfif 等别名扩展名 image::open 认不出，内容识别都能走通
+        image::ImageReader::open(&p)
+            .map_err(|e| format!("打开失败：{e}"))?
+            .with_guessed_format()
+            .map_err(|e| format!("识别格式失败：{e}"))?
+            .decode()
+            .map_err(|e| format!("解码失败：{e}"))
     }
 }
 
@@ -661,9 +714,13 @@ fn logging_plugin() -> tauri::plugin::TauriPlugin<tauri::Wry> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
-        // single-instance 必须最先注册：第二次启动把图片路径转交给已有窗口
-        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+    let builder = tauri::Builder::default();
+    // single-instance 必须最先注册：第二次启动把图片路径转交给已有窗口。
+    // 设置里开了「允许多开」则不注册，第二实例独立成窗。
+    let builder = if multi_instance_enabled() {
+        builder
+    } else {
+        builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             if let Some(file) = pick_image_arg(&argv) {
                 let _ = app.emit("open-file", file);
             }
@@ -672,8 +729,16 @@ pub fn run() {
                 let _ = w.set_focus();
             }
         }))
+    };
+    let builder = builder
         .plugin(logging_plugin())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_process::init());
+    // updater 插件仅在桌面端注册（移动端自动跳过）
+    let builder = tauri_updater_kit::attach_updater(builder);
+
+    builder
         .manage(LaunchFile::default())
         .setup(|app| {
             log::info!("SViewer v{} 启动", app.package_info().version);
@@ -705,6 +770,7 @@ pub fn run() {
             unique_dest,
             assoc_status,
             assoc_set,
+            set_multi_instance,
         ])
         .run(tauri::generate_context!())
         .expect("error while running sviewer");

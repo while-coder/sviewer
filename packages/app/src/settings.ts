@@ -4,6 +4,7 @@
  * 主题等派生值也在这里统一计算，App.vue 只管消费。
  */
 import { computed, reactive, ref, watch } from 'vue'
+import { invoke } from '@tauri-apps/api/core'
 
 /** 界面主题：深色 / 浅色 / 跟随系统。 */
 export type Theme = 'dark' | 'light' | 'system'
@@ -19,6 +20,10 @@ export interface AppSettings {
   outline: boolean
   /** 是否显示右侧图片信息面板 */
   showInfo: boolean
+  /** 无浮层时按 Esc：退出程序（true）还是最小化窗口（默认） */
+  escClose: boolean
+  /** 允许多开：改完后写入标记文件，下次启动生效（Rust 启动时读不到 localStorage） */
+  allowMulti: boolean
 }
 
 const KEY = 'sviewer:settings'
@@ -29,6 +34,8 @@ const DEFAULTS: AppSettings = {
   checkerboard: true,
   outline: false,
   showInfo: false,
+  escClose: false,
+  allowMulti: false,
 }
 
 function load(): AppSettings {
@@ -67,6 +74,18 @@ watch(
     }
   },
   { deep: true },
+)
+
+// 「允许多开」镜像到 Rust 侧标记文件（%APPDATA%/com.while.sviewer/allow-multi-instance），
+// 启动时据此决定是否注册 single-instance 插件；变化时写入，启动时也同步一次（重装后恢复）。
+watch(
+  () => settings.allowMulti,
+  (v) => {
+    void invoke('set_multi_instance', { enabled: v }).catch((e) =>
+      console.warn('同步多开设置失败', e),
+    )
+  },
+  { immediate: true },
 )
 
 /** 系统当前是否深色（用于 theme = 'system'）。 */

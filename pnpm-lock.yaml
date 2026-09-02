@@ -41,6 +41,18 @@ importers:
       '@tauri-apps/plugin-log':
         specifier: ^2.8.0
         version: 2.8.0
+      '@tauri-apps/plugin-opener':
+        specifier: ^2.5.5
+        version: 2.5.5
+      '@tauri-apps/plugin-process':
+        specifier: ^2.3.1
+        version: 2.3.1
+      '@tauri-apps/plugin-updater':
+        specifier: ^2.11.0
+        version: 2.11.0
+      '@while-coder/tauri-updater-vue':
+        specifier: github:while-coder/tauri-updater-kit#main&path:packages/vue
+        version: https://codeload.github.com/while-coder/tauri-updater-kit/tar.gz/9728f9a9eb6b9ed6eb5620cb42e34bbce1100fb6#path:packages/vue(@tauri-apps/api@2.11.1)(@tauri-apps/plugin-process@2.3.1)(@tauri-apps/plugin-updater@2.11.0)(vue@3.5.39(typescript@6.0.3))
       libheif-js:
         specifier: ^1.19.8
         version: 1.19.8
@@ -440,8 +452,20 @@ packages:
   '@tauri-apps/plugin-log@2.8.0':
     resolution: {integrity: sha512-a+7rOq3MJwpTOLLKbL8d0qGZ85hgHw5pNOWusA9o3cf7cEgtYHiGY/+O8fj8MvywQIGqFv0da2bYQDlrqLE7rw==}
 
+  '@tauri-apps/plugin-opener@2.5.5':
+    resolution: {integrity: sha512-xvzGai5aQds8j8R8RsUK/lW6pGG50YgOYIPLzvkqmkwAj7dfySOD7sGtejRzvVdMmv1EQfKVEFh1MvmDp8QR0g==}
+
+  '@tauri-apps/plugin-process@2.3.1':
+    resolution: {integrity: sha512-nCa4fGVaDL/B9ai03VyPOjfAHRHSBz5v6F/ObsB73r/dA3MHHhZtldaDMIc0V/pnUw9ehzr2iEG+XkSEyC0JJA==}
+
+  '@tauri-apps/plugin-updater@2.11.0':
+    resolution: {integrity: sha512-AE36XkOoSna24G40jZMY15nzAnkXEPL/73tGoseGrtGOHuI/cZwWzHpZFLjKXDPgzYZ435z1gHu28LgrsBwIxQ==}
+
   '@tybys/wasm-util@0.10.3':
     resolution: {integrity: sha512-F3fo1MYrRJYL3zER0OUOmkutjr1Vp23m7OsSgp7nq4SP6OqX6C/56XFIPAl5bt3zaBRjmW7SGz3u/6LwFpYcOg==}
+
+  '@types/trusted-types@2.0.7':
+    resolution: {integrity: sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==}
 
   '@vitejs/plugin-vue@6.0.7':
     resolution: {integrity: sha512-km+p+XdSz9Sxm5rqUbqcSfZYaAniKxWBj1KURl+Jr7UaPvvX7BmaWMdP69I5rrFDeQGyxAG7NXdc57vz+snhWg==}
@@ -479,12 +503,24 @@ packages:
   '@vue/shared@3.5.39':
     resolution: {integrity: sha512-l1rrBtBfTnmxvtsvdQDXltUUy8S1Y+ZaqdfUzmAnJkTd8Z8rv5v/ytW+TKiqEOWyHPoqtPlNFSs0lhRmYVSHVA==}
 
+  '@while-coder/tauri-updater-vue@https://codeload.github.com/while-coder/tauri-updater-kit/tar.gz/9728f9a9eb6b9ed6eb5620cb42e34bbce1100fb6#path:packages/vue':
+    resolution: {path: packages/vue, tarball: https://codeload.github.com/while-coder/tauri-updater-kit/tar.gz/9728f9a9eb6b9ed6eb5620cb42e34bbce1100fb6}
+    version: 0.0.0
+    peerDependencies:
+      '@tauri-apps/api': ^2
+      '@tauri-apps/plugin-process': ^2
+      '@tauri-apps/plugin-updater': ^2
+      vue: ^3.5.0
+
   csstype@3.2.3:
     resolution: {integrity: sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==}
 
   detect-libc@2.1.2:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
     engines: {node: '>=8'}
+
+  dompurify@3.4.14:
+    resolution: {integrity: sha512-dVoH9z+MY+C9IilgGCk3YfFqjLi3fChm2OiKJMzh6axrJ5qwxqWaZamgmHrpv22CN/KdbZJuGEGgfQoL00LTdg==}
 
   entities@7.0.1:
     resolution: {integrity: sha512-TWrgLOFUQTH994YUyl1yT4uyavY5nNB5muff+RtWaqNVCAK408b5ZnnbNAUEWLTCpum9w6arT70i1XdQ4UeOPA==}
@@ -592,6 +628,11 @@ packages:
 
   magic-string@0.30.21:
     resolution: {integrity: sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==}
+
+  marked@18.0.11:
+    resolution: {integrity: sha512-HnslJfsZkRPBDJRHvVtAaWlZHEpSu7u8LgQuJCELjRKuWR+hpq4A7sLq3p8HaI9ypVoXDXxV34CsQJEe1+J5Aw==}
+    engines: {node: '>= 20'}
+    hasBin: true
 
   nanoid@3.3.15:
     resolution: {integrity: sha512-y7Wygv/7mEOvxTuEQDB8StXdMRBWf1kR/tlhAzBRUFkB2jfcLOAxO/SHmOO2zgz1pVgK29/kyupn059/bCHdjA==}
@@ -909,9 +950,24 @@ snapshots:
     dependencies:
       '@tauri-apps/api': 2.11.1
 
+  '@tauri-apps/plugin-opener@2.5.5':
+    dependencies:
+      '@tauri-apps/api': 2.11.1
+
+  '@tauri-apps/plugin-process@2.3.1':
+    dependencies:
+      '@tauri-apps/api': 2.11.1
+
+  '@tauri-apps/plugin-updater@2.11.0':
+    dependencies:
+      '@tauri-apps/api': 2.11.1
+
   '@tybys/wasm-util@0.10.3':
     dependencies:
       tslib: 2.8.1
+    optional: true
+
+  '@types/trusted-types@2.0.7':
     optional: true
 
   '@vitejs/plugin-vue@6.0.7(vite@8.1.0(esbuild@0.28.1))(vue@3.5.39(typescript@6.0.3))':
@@ -974,9 +1030,22 @@ snapshots:
 
   '@vue/shared@3.5.39': {}
 
+  '@while-coder/tauri-updater-vue@https://codeload.github.com/while-coder/tauri-updater-kit/tar.gz/9728f9a9eb6b9ed6eb5620cb42e34bbce1100fb6#path:packages/vue(@tauri-apps/api@2.11.1)(@tauri-apps/plugin-process@2.3.1)(@tauri-apps/plugin-updater@2.11.0)(vue@3.5.39(typescript@6.0.3))':
+    dependencies:
+      '@tauri-apps/api': 2.11.1
+      '@tauri-apps/plugin-process': 2.3.1
+      '@tauri-apps/plugin-updater': 2.11.0
+      dompurify: 3.4.14
+      marked: 18.0.11
+      vue: 3.5.39(typescript@6.0.3)
+
   csstype@3.2.3: {}
 
   detect-libc@2.1.2: {}
+
+  dompurify@3.4.14:
+    optionalDependencies:
+      '@types/trusted-types': 2.0.7
 
   entities@7.0.1: {}
 
@@ -1073,6 +1142,8 @@ snapshots:
   magic-string@0.30.21:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.5
+
+  marked@18.0.11: {}
 
   nanoid@3.3.15: {}
 

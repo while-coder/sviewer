@@ -10,6 +10,7 @@
     "build:app": "pnpm --filter @sviewer/app windows:build",
     "build:app:mac": "pnpm --filter @sviewer/app macos:build",
     "sync:icons": "node scripts/sync-icons.js",
+    "release": "node scripts/release.cjs",
     "tauri": "pnpm --filter @sviewer/app tauri"
   },
   "devDependencies": {
