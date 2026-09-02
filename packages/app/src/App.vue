@@ -244,6 +244,8 @@ const index = computed(() => (currentPath.value ? siblings.value.indexOf(current
 // 详情抽屉（完整 EXIF）
 const showDetail = ref(false)
 const commonInfo = computed(() => (info.value ? pickCommonInfo(info.value.exif) : []))
+// 简略浮层只放前几条，保证面板不滚动；完整列表进「更多详情」抽屉
+const briefInfo = computed(() => commonInfo.value.slice(0, 6))
 const counter = computed(() =>
   index.value >= 0 ? `${index.value + 1}/${siblings.value.length}` : '',
 )
@@ -737,23 +739,26 @@ onUnmounted(() => {
       <button class="tool corner" title="全屏 (F11)" @click="toggleFullscreen">⛶</button>
     </footer>
 
-    <!-- 信息浮层：锚在底部 ⓘ 按钮上方，只放常用信息 -->
+    <!-- 信息浮层：左上角，只放常用信息（「更多详情」展开完整 EXIF 抽屉） -->
     <aside v-if="showInfo && info" class="info">
-      <h3>{{ info.fileName }} <span v-if="counter">{{ counter }}</span></h3>
-      <dl>
-        <div><dt>大小</dt><dd>{{ humanSize(info.size) }}</dd></div>
-        <div><dt>尺寸</dt><dd>{{ info.width }} × {{ info.height }}</dd></div>
-        <div><dt>格式</dt><dd>{{ info.format }}</dd></div>
-      </dl>
-      <dl v-if="commonInfo.length > 0" class="common">
+      <header class="info-head">
+        <span class="name">{{ info.fileName }}</span>
+        <span v-if="counter" class="pill">{{ counter }}</span>
+      </header>
+      <div class="stats">
+        <div class="stat"><span class="k">大小</span><span class="v">{{ humanSize(info.size) }}</span></div>
+        <div class="stat"><span class="k">尺寸</span><span class="v">{{ info.width }} × {{ info.height }}</span></div>
+        <div class="stat"><span class="k">格式</span><span class="v">{{ info.format }}</span></div>
+      </div>
+      <dl v-if="briefInfo.length > 0" class="rows">
         <div v-for="c in commonInfo" :key="c.label"><dt>{{ c.label }}</dt><dd>{{ c.value }}</dd></div>
       </dl>
       <button v-if="info.exif.length > 0" class="more" @click="showDetail = true">
-        更多详情（{{ info.exif.length }}）›
+        更多详情<span class="pill">{{ info.exif.length }}</span>
       </button>
     </aside>
 
-    <!-- 详情抽屉：完整 EXIF，右侧滑出 -->
+    <!-- 详情抽屉：完整 EXIF，左上角滑出的半透明面板 -->
     <transition name="slide">
       <aside v-if="showDetail && info" class="detail">
         <header>
@@ -767,7 +772,7 @@ onUnmounted(() => {
           <div class="stat"><span class="k">尺寸</span><span class="v">{{ info.width }} × {{ info.height }}</span></div>
           <div class="stat"><span class="k">格式</span><span class="v">{{ info.format }}</span></div>
         </div>
-        <h4>EXIF（{{ info.exif.length }}）</h4>
+        <h4>EXIF <span class="pill">{{ info.exif.length }}</span></h4>
         <dl v-if="info.exif.length > 0">
           <div v-for="ex in info.exif" :key="ex.tag">
             <dt>{{ exifLabel(ex.tag) }}</dt><dd>{{ ex.value }}</dd>
@@ -1016,76 +1021,119 @@ onUnmounted(() => {
 .empty .hint { font-size: 12px; opacity: 0.7; margin-top: 8px; }
 .empty.error pre { color: #cf6679; white-space: pre-wrap; max-width: 70vw; }
 
-/* 信息面板：锚在底部 ⓘ 按钮上方的深色浮层，不遮图片主体、任何背景上都清晰 */
+/* ── 信息浮层 / 详情抽屉：统一的暗色玻璃面板，主题蓝点缀 ──
+   面板恒为暗色（深浅主题一致，压住任何背景的图片），内部变量整体切到亮色；
+   主题色只做点缀：计数胶囊、分区标题竖条、主按钮。 */
+.info, .detail {
+  --fg: #fff;
+  --fg-muted: rgba(255, 255, 255, 0.55);
+  --border: rgba(255, 255, 255, 0.12);
+  --row: rgba(255, 255, 255, 0.05);
+  --row-hover: rgba(255, 255, 255, 0.1);
+  --accent: var(--primary);
+  --accent-soft: color-mix(in srgb, var(--primary) 22%, transparent);
+  --accent-strong: color-mix(in srgb, var(--primary) 34%, transparent);
+  --panel-bg: rgba(16, 18, 24, 0.82);
+}
 .info {
-  position: absolute; right: 12px; bottom: 44px;
-  width: max-content; max-width: 360px;
-  max-height: min(62%, 460px);
-  overflow-y: auto;
-  background: var(--overlay);
+  position: absolute; left: 12px; top: 12px;
+  width: 320px; max-width: calc(100vw - 24px);
+  /* 内容固定为「前 6 条常用信息」，面板不滚动 */
+  overflow: hidden;
+  background: var(--panel-bg);
+  backdrop-filter: blur(14px);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px 14px;
-  font-size: 12px; line-height: 1.7;
+  border-radius: 12px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  padding: 12px;
+  font-size: 12px; line-height: 1.6;
   color: var(--fg);
-  backdrop-filter: blur(8px);
-  box-shadow: 0 6px 24px rgba(0,0,0,0.5);
   z-index: 3;
 }
-.info h3 { margin: 0 0 2px; font-size: 12px; font-weight: 600; word-break: break-all; }
-.info h3 span { color: var(--fg-muted); font-weight: 400; margin-left: 4px; }
-.info dl { margin: 0; }
-.info dl > div { display: flex; gap: 8px; }
-.info dt { color: var(--fg-muted); flex-shrink: 0; }
-.info dt::after { content: ':'; }
-.info dd { margin: 0; word-break: break-all; }
-.info .common { border-top: 1px solid var(--border); margin-top: 6px; padding-top: 4px; }
-.info .more {
-  margin-top: 8px; width: 100%;
-  background: var(--hover); border: 1px solid var(--border);
-  border-radius: 6px; color: var(--fg); cursor: pointer;
-  font-size: 12px; padding: 4px 0;
+/* 细滚动条，弱化存在感（简略浮层不滚动，无需滚动条） */
+.detail::-webkit-scrollbar { width: 8px; }
+.detail::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16); border-radius: 4px;
+  background-clip: content-box; border: 2px solid transparent;
 }
-.info .more:hover { background: var(--hover-strong); }
+.detail::-webkit-scrollbar-thumb:hover { background-color: rgba(255, 255, 255, 0.28); }
 
-/* 详情抽屉：完整 EXIF，右侧滑出 */
+/* 标题行：文件名 + 计数胶囊 */
+.info-head { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 10px; }
+.info-head .name { font-weight: 600; word-break: break-all; min-width: 0; }
+.pill {
+  flex-shrink: 0;
+  background: var(--accent-soft); color: var(--fg);
+  border-radius: 999px; padding: 1px 8px;
+  font-size: 11px; font-weight: 500; line-height: 1.5;
+}
+/* 基本信息：三枚统计卡片 */
+.info .stats, .detail .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.stat {
+  display: flex; flex-direction: column; gap: 1px; min-width: 0;
+  background: var(--row); border-radius: 8px; padding: 6px 9px;
+}
+.stat .k { font-size: 10px; color: var(--fg-muted); }
+.stat .v { font-size: 11.5px; font-weight: 600; word-break: break-all; }
+/* EXIF 行：标签列固定宽对齐，无冒号；悬停整行提亮 */
+.info .rows { margin: 10px 0 0; border-top: 1px solid var(--border); padding-top: 7px; }
+.info .rows > div, .detail dl > div {
+  display: grid; grid-template-columns: 64px 1fr; gap: 0 10px;
+  padding: 3px 6px; border-radius: 6px;
+}
+.info .rows > div:nth-child(odd) { background: var(--row); }
+.info dt, .detail dt { color: var(--fg-muted); }
+.info dd, .detail dd { margin: 0; word-break: break-all; }
+/* 「更多详情」主按钮：主题色幽灵按钮 */
+.info .more {
+  margin-top: 10px; width: 100%;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  background: var(--accent-soft); border: none;
+  border-radius: 8px; color: var(--fg); cursor: pointer;
+  font-size: 12px; padding: 6px 0;
+}
+.info .more:hover { background: var(--accent-strong); }
+
+/* 详情抽屉：与信息浮层同一套面板语言 */
 .detail {
-  position: absolute; top: 0; right: 0; bottom: 34px; width: 380px; max-width: 92vw;
-  background: var(--panel); border-left: 1px solid var(--border);
-  overflow-y: auto; padding: 0 16px 14px;
-  font-size: 12px; line-height: 1.7; z-index: 4;
+  position: absolute; top: 0; left: 0; bottom: 34px; width: 380px; max-width: 92vw;
+  background: var(--panel-bg); backdrop-filter: blur(14px);
+  border-right: 1px solid var(--border);
+  overflow-y: auto; padding: 0 14px 14px;
+  font-size: 12px; line-height: 1.6; color: var(--fg); z-index: 4;
+  box-shadow: 8px 0 28px rgba(0, 0, 0, 0.4);
 }
 .detail header {
   position: sticky; top: 0; z-index: 1;
   display: flex; align-items: center; justify-content: space-between;
-  margin: 0 -16px 10px; padding: 10px 16px;
-  background: var(--panel); border-bottom: 1px solid var(--border);
+  margin: 0 -14px 12px; padding: 10px 14px;
+  background: rgba(16, 18, 24, 0.85); backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border);
   font-weight: 600;
 }
 .detail .close {
   background: none; border: none; color: var(--fg-muted); cursor: pointer;
   font-size: 16px; line-height: 1; padding: 2px 6px; border-radius: 6px;
 }
-.detail .close:hover { color: var(--fg); background: var(--hover); }
-.detail .file-name { margin: 2px 0 0; font-weight: 600; word-break: break-all; }
-.detail h4 { margin: 14px 0 6px; font-size: 12px; color: var(--fg-muted); font-weight: 600; }
-/* 基本信息：三枚统计卡片 */
-.detail .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-.detail .stat {
-  display: flex; flex-direction: column; gap: 2px; min-width: 0;
-  background: var(--hover); border-radius: 8px; padding: 7px 10px;
+.detail .close:hover { color: var(--fg); background: var(--row-hover); }
+.detail .file-name { margin: 0 0 10px; font-weight: 600; word-break: break-all; }
+/* 分区标题：主题色竖条 + 灰字 */
+.detail h4 {
+  display: flex; align-items: center; gap: 6px;
+  margin: 14px 0 6px; font-size: 11px; font-weight: 600;
+  color: var(--fg-muted);
 }
-.detail .stat .k { font-size: 11px; color: var(--fg-muted); }
-.detail .stat .v { font-weight: 600; word-break: break-all; }
-/* EXIF：标签列对齐 + 斑马纹，长值可读性更好 */
+.detail h4::before {
+  content: ''; width: 3px; height: 11px;
+  border-radius: 2px; background: var(--accent);
+}
 .detail dl { margin: 0; }
-.detail dl > div { display: grid; grid-template-columns: 96px 1fr; gap: 10px; padding: 4px 8px; border-radius: 6px; }
-.detail dl > div:nth-child(odd) { background: var(--hover); }
-.detail dt { color: var(--fg-muted); }
-.detail dd { margin: 0; word-break: break-all; }
+.detail dl > div { grid-template-columns: 96px 1fr; gap: 0 10px; }
+.detail dl > div:nth-child(odd) { background: var(--row); }
+.detail dl > div:hover { background: var(--row-hover); }
 .detail .none { margin: 0; color: var(--fg-muted); }
 .slide-enter-active, .slide-leave-active { transition: transform 0.18s ease, opacity 0.18s ease; }
-.slide-enter-from, .slide-leave-to { transform: translateX(24px); opacity: 0; }
+.slide-enter-from, .slide-leave-to { transform: translateX(-24px); opacity: 0; }
 
 /* 右键菜单：透明遮罩接管点击，菜单本体浮在光标处 */
 .ctx-backdrop { position: fixed; inset: 0; z-index: 20; }

@@ -28,13 +28,23 @@ const SUPPORTED_EXT: &[&str] = &[
 #[derive(Default)]
 struct LaunchFile(Mutex<Option<String>>);
 
-/// 「允许多开」标记文件：%APPDATA%/com.while.sviewer/allow-multi-instance。
+/// 「允许多开」标记文件：<配置目录>/com.while.sviewer/allow-multi-instance。
+/// 路径与 Tauri app_config_dir 约定一致：
+/// Windows %APPDATA% · macOS ~/Library/Application Support · Linux $XDG_CONFIG_HOME（缺省 ~/.config）。
 /// 前端设置里开关时由 set_multi_instance 写/删；启动时按它决定是否注册
 /// single-instance 插件（localStorage 读不到，Rust 侧只认文件）。
 fn multi_instance_flag_path() -> Option<PathBuf> {
-    std::env::var("APPDATA")
-        .ok()
-        .map(|d| PathBuf::from(d).join("com.while.sviewer").join("allow-multi-instance"))
+    let base = if cfg!(target_os = "windows") {
+        PathBuf::from(std::env::var("APPDATA").ok()?)
+    } else if cfg!(target_os = "macos") {
+        PathBuf::from(std::env::var("HOME").ok()?).join("Library").join("Application Support")
+    } else {
+        match std::env::var("XDG_CONFIG_HOME") {
+            Ok(v) if !v.is_empty() => PathBuf::from(v),
+            _ => PathBuf::from(std::env::var("HOME").ok()?).join(".config"),
+        }
+    };
+    Some(base.join("com.while.sviewer").join("allow-multi-instance"))
 }
 
 /// 当前是否允许多开。
