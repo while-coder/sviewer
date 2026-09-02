@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "SViewer",
+        "title": "素阅 SViewer",
         "width": 1100,
         "height": 720,
         "minWidth": 500,

@@ -41,7 +41,7 @@ export function useAppMenu(onAction: (a: AppMenuAction) => void) {
         item('actual-size', '原始大小'),
         item('toggle-info', '信息面板'),
         item('settings', '设置…'),
-        item('about', '关于 SViewer'),
+        item('about', '关于素阅'),
       ])
 
       const file = await Submenu.new({
@@ -61,7 +61,7 @@ export function useAppMenu(onAction: (a: AppMenuAction) => void) {
         // 「关于」按平台惯例放应用菜单，打开后跳到设置弹窗的「关于」页
         const app = await Submenu.new({
           id: 'menu:app',
-          text: 'SViewer',
+          text: '素阅',
           items: [about, sep(), { item: 'Hide' }, { item: 'HideOthers' }, { item: 'ShowAll' }, sep(), { item: 'Quit' }],
         })
         submenus.unshift(app)

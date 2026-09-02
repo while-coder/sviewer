@@ -61,8 +61,8 @@ mod imp {
         let (prog, _) = hkcu
             .create_subkey(format!("Software\\Classes\\{PROG_ID}"))
             .map_err(reg_err)?;
-        prog.set_value("", &"SViewer 图片").map_err(reg_err)?;
-        prog.set_value("FriendlyTypeName", &"SViewer 图片")
+        prog.set_value("", &"素阅 图片").map_err(reg_err)?;
+        prog.set_value("FriendlyTypeName", &"素阅 图片")
             .map_err(reg_err)?;
         let (icon, _) = prog
             .create_subkey("DefaultIcon")
@@ -91,7 +91,7 @@ mod imp {
         let (cap, _) = hkcu
             .create_subkey("Software\\SViewer\\Capabilities")
             .map_err(reg_err)?;
-        cap.set_value("ApplicationName", &"SViewer").map_err(reg_err)?;
+        cap.set_value("ApplicationName", &"素阅").map_err(reg_err)?;
         cap.set_value("ApplicationDescription", &"轻量级本地图片查看器")
             .map_err(reg_err)?;
         let (fa, _) = cap.create_subkey("FileAssociations").map_err(reg_err)?;
@@ -101,8 +101,10 @@ mod imp {
         let (ra, _) = hkcu
             .create_subkey("Software\\RegisteredApplications")
             .map_err(reg_err)?;
-        ra.set_value("SViewer", &"Software\\SViewer\\Capabilities")
+        ra.set_value("素阅", &"Software\\SViewer\\Capabilities")
             .map_err(reg_err)?;
+        // 清掉旧版用英文名注册的条目，避免「设置 → 默认应用」里出现两个
+        let _ = ra.delete_value("SViewer");
 
         Ok(())
     }

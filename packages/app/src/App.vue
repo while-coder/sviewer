@@ -107,7 +107,7 @@ async function openBatch() {
     return
   }
   new WebviewWindow('batch', {
-    title: '批量转换 - SViewer',
+    title: '批量转换 - 素阅',
     url: 'batch.html',
     width: 760,
     height: 540,
@@ -136,7 +136,7 @@ async function openEdit() {
     return
   }
   new WebviewWindow('edit', {
-    title: '编辑 - SViewer',
+    title: '编辑 - 素阅',
     url: `edit.html?path=${encodeURIComponent(p)}`,
     width: 980,
     height: 660,
@@ -251,7 +251,7 @@ const counter = computed(() =>
 )
 // 窗口标题：文件名 · 计数 · 尺寸 · 大小 · 缩放（顶栏已省掉，信息全放标题栏）
 const title = computed(() => {
-  if (!info.value) return 'SViewer'
+  if (!info.value) return '素阅 SViewer'
   const parts = [info.value.fileName]
   if (counter.value) parts.push(counter.value)
   if (info.value.width > 0) parts.push(`${info.value.width} × ${info.value.height}`)
@@ -798,7 +798,7 @@ onUnmounted(() => {
         <button class="ctx-item" @click="ctxAct(() => toggleFullscreen())">全屏<span class="k">F11</span></button>
         <div class="ctx-sep" />
         <button class="ctx-item" @click="ctxAct(() => (modal = 'settings'))">设置…</button>
-        <button class="ctx-item" @click="ctxAct(openAbout)">关于 SViewer</button>
+        <button class="ctx-item" @click="ctxAct(openAbout)">关于素阅</button>
       </nav>
     </div>
 
@@ -840,7 +840,7 @@ onUnmounted(() => {
                 </div>
 
                 <div class="row">
-                  <span class="label">允许多开<small>可同时打开多个 SViewer 窗口，重启后生效</small></span>
+                  <span class="label">允许多开<small>可同时打开多个素阅窗口，重启后生效</small></span>
                   <div class="seg">
                     <button :class="{ on: settings.allowMulti }" @click="settings.allowMulti = true">开</button>
                     <button :class="{ on: !settings.allowMulti }" @click="settings.allowMulti = false">关</button>
@@ -909,10 +909,10 @@ onUnmounted(() => {
               <template v-else>
                 <div class="about-page">
                   <section class="about-hero">
-                    <img class="about-logo" src="/sviewer-icon.png" alt="SViewer" />
+                    <img class="about-logo" src="/sviewer-icon.png" alt="素阅" />
                     <div class="about-product">
                       <div class="about-title-row">
-                        <h2>SViewer</h2>
+                        <h2>素阅</h2>
                         <span v-if="appVersion" class="vtag">v{{ appVersion }}</span>
                       </div>
                       <p>轻量级本地图片查看器</p>
