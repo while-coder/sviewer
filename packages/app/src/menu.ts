@@ -27,20 +27,22 @@ export function useAppMenu(onAction: (a: AppMenuAction) => void) {
   const supported = isTauri() && !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
   let disposed = false
 
-  const item = (id: AppMenuAction, text: string) =>
-    MenuItem.new({ id: `menu:${id}`, text, action: () => handle(id) })
+  const item = (id: AppMenuAction, text: string, accelerator?: string) =>
+    MenuItem.new({ id: `menu:${id}`, text, accelerator: accelerator ?? null, action: () => handle(id) })
 
   async function initialize() {
     if (!supported) return
     try {
+      // 加速键与 webview 快捷键语义对齐（0 适应窗口 / 1 原始大小 / i 信息面板）。
+      // save-as 的 Cmd/Ctrl+S webview 侧也在监听，App.vue 里有重入锁防双触发。
       const [openFile, saveAs, batchConvert, fit, actualSize, toggleInfo, settings, about] = await Promise.all([
-        item('open-file', '打开…'),
-        item('save-as', '另存为…'),
+        item('open-file', '打开…', 'CmdOrCtrl+O'),
+        item('save-as', '另存为…', 'CmdOrCtrl+S'),
         item('batch-convert', '批量转换…'),
-        item('fit', '适应窗口'),
-        item('actual-size', '原始大小'),
-        item('toggle-info', '信息面板'),
-        item('settings', '设置…'),
+        item('fit', '适应窗口', 'CmdOrCtrl+0'),
+        item('actual-size', '原始大小', 'CmdOrCtrl+1'),
+        item('toggle-info', '信息面板', 'CmdOrCtrl+I'),
+        item('settings', '设置…', 'CmdOrCtrl+,'),
         item('about', '关于素阅'),
       ])
 

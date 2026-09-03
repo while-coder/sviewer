@@ -263,6 +263,9 @@ watchEffect(() => {
   getCurrentWindow().setTitle(title.value).catch((e) => console.warn('设置标题失败', e))
 })
 
+// ── 平台判定（快捷键提示 / Esc 行为 / 设置页 tab 显隐共用）──
+const isMac = /Mac/i.test(navigator.platform)
+
 // ── 设置：格式关联（Windows，只写 HKCU 免管理员）──────────
 // 应用内一键关联仅 Windows 有实现（macOS 靠 Info.plist 声明、Linux 靠 .desktop），
 // tab 只在 Windows 显示；assoc_status 返回空列表（读取失败）时区块内容也不显示。
@@ -322,37 +325,46 @@ watchEffect(() => {
 })
 
 // ── 另存为（对话框里选「保存类型」即可顺带转换格式）──────
+// 菜单加速键（Cmd/Ctrl+S）与 webview 快捷键在部分平台会同时命中：
+// 加重入锁防止连开两个保存对话框。
+let saveAsBusy = false
 async function saveAs() {
+  if (saveAsBusy) return
   const p = currentPath.value
   if (!p) return
-  const stem = (info.value?.fileName || p.split(/[\\/]/).pop() || 'image').replace(/\.[^.]+$/, '')
-  // 编辑面板里选了目标格式时预填对应扩展名
-  const defExt =
-    editOutput.format === 'original'
-      ? (extOf(p) || 'jpg')
-      : editOutput.format === 'jpeg'
-        ? 'jpg'
-        : editOutput.format
-  const dest = await saveDialog({
-    defaultPath: `${stem}.${defExt}`,
-    filters: SAVE_FILTERS,
-  })
-  if (!dest) return
+  saveAsBusy = true
   try {
-    // 带编辑时「与源同扩展名」也必须重编码（否则 edits 会被 original 快路径丢掉）
-    let fmt = inferFormat(dest, p)
-    if (modified.value && fmt === 'original') {
-      fmt = EXT_FORMAT[dest.split('.').pop()?.toLowerCase() ?? ''] ?? 'original'
+    const stem = (info.value?.fileName || p.split(/[\\/]/).pop() || 'image').replace(/\.[^.]+$/, '')
+    // 编辑面板里选了目标格式时预填对应扩展名
+    const defExt =
+      editOutput.format === 'original'
+        ? (extOf(p) || 'jpg')
+        : editOutput.format === 'jpeg'
+          ? 'jpg'
+          : editOutput.format
+    const dest = await saveDialog({
+      defaultPath: `${stem}.${defExt}`,
+      filters: SAVE_FILTERS,
+    })
+    if (!dest) return
+    try {
+      // 带编辑时「与源同扩展名」也必须重编码（否则 edits 会被 original 快路径丢掉）
+      let fmt = inferFormat(dest, p)
+      if (modified.value && fmt === 'original') {
+        fmt = EXT_FORMAT[dest.split('.').pop()?.toLowerCase() ?? ''] ?? 'original'
+      }
+      if (fmt === 'original') {
+        // 无编辑且同格式：原样复制，不重编码
+        await saveImageAs(p, dest, 'original')
+      } else {
+        await encodeTo(p, dest, fmt, editOutput.format === 'jpeg' ? editOutput.quality : null, editsFromState())
+      }
+    } catch (e) {
+      console.error('另存为失败', e)
+      window.alert(`另存为失败：${e}`)
     }
-    if (fmt === 'original') {
-      // 无编辑且同格式：原样复制，不重编码
-      await saveImageAs(p, dest, 'original')
-    } else {
-      await encodeTo(p, dest, fmt, editOutput.format === 'jpeg' ? editOutput.quality : null, editsFromState())
-    }
-  } catch (e) {
-    console.error('另存为失败', e)
-    window.alert(`另存为失败：${e}`)
+  } finally {
+    saveAsBusy = false
   }
 }
 
@@ -603,12 +615,15 @@ function onKey(e: KeyboardEvent) {
     case 'ArrowLeft': step(-1); break
     case 'ArrowRight': step(1); break
     case 'Escape':
-      // 逐层关闭浮层，最后按设置最小化或退出程序
+      // 逐层关闭浮层；无浮层时按设置最小化或退出程序。
+      // macOS 惯例：Esc 只关浮层，不最小化 / 退出窗口。
       if (ctx.show) ctx.show = false
       else if (modal.value) modal.value = null
       else if (showDetail.value) showDetail.value = false
-      else if (settings.escClose) void getCurrentWindow().close()
-      else void getCurrentWindow().minimize()
+      else if (!isMac) {
+        if (settings.escClose) void getCurrentWindow().close()
+        else void getCurrentWindow().minimize()
+      }
       break
     case 's': case 'S':
       if (e.ctrlKey || e.metaKey) {
@@ -788,7 +803,7 @@ onUnmounted(() => {
     <div v-if="ctx.show" class="ctx-backdrop" @mousedown="ctx.show = false" @contextmenu.prevent="ctx.show = false">
       <nav ref="ctxEl" class="ctx" :style="{ left: ctx.x + 'px', top: ctx.y + 'px' }" @mousedown.stop>
         <button class="ctx-item" @click="ctxAct(() => pickFile())">打开…<span class="k">O</span></button>
-        <button class="ctx-item" :disabled="!currentPath" @click="ctxAct(() => saveAs())">另存为…<span class="k">Ctrl+S</span></button>
+        <button class="ctx-item" :disabled="!currentPath" @click="ctxAct(() => saveAs())">另存为…<span class="k">{{ isMac ? '⌘S' : 'Ctrl+S' }}</span></button>
         <button class="ctx-item" :disabled="!currentPath" @click="ctxAct(() => void openEdit())">编辑…</button>
         <button class="ctx-item" @click="ctxAct(() => void openBatch())">批量转换…</button>
         <div class="ctx-sep" />
