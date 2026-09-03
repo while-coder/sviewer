@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  自定义 Info.plist（打包时与 Tauri CLI 生成的合并，同名键以本文件为准）。
+
+  - CFBundleLocalizations：向系统声明应用支持的语言。macOS 的预定义菜单项
+    （Hide / Hide Others / Show All / Quit 等）由系统按「用户语言 ∩ 应用声明语言」
+    出标题——不声明中文时，简中文系统上也会显示英文。声明 zh-Hans 后即显示
+    「隐藏素阅 / 退出素阅」等。
+  - CFBundleDisplayName：Finder / Dock 里的显示名（素阅.app）。
+    包文件名仍由 productName（SViewer）决定，安装路径与更新器产物名不受影响，
+    不会出现新旧两个应用。
+-->
+<plist version="1.0">
+  <dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>zh-Hans</string>
+    <key>CFBundleLocalizations</key>
+    <array>
+      <string>zh-Hans</string>
+      <string>en</string>
+    </array>
+    <key>CFBundleDisplayName</key>
+    <string>素阅</string>
+  </dict>
+</plist>

@@ -32,6 +32,9 @@
   "bundle": {
     "active": true,
     "publisher": "while",
+    "macOS": {
+      "bundleName": "素阅"
+    },
     "createUpdaterArtifacts": true,
     "targets": ["nsis", "app", "dmg", "deb", "appimage"],
     "icon": [
