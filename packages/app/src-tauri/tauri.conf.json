@@ -43,16 +43,114 @@
     ],
     "fileAssociations": [
       {
-        "ext": [
-          "jpg", "jpeg", "jpe", "jfif", "png", "gif", "webp", "bmp", "ico", "svg", "avif",
-          "tiff", "tif", "heic", "heif", "hif", "tga", "pbm", "pgm", "ppm", "pnm",
-          "dds", "hdr", "exr", "qoi"
-        ],
+        "ext": ["jpg", "jpeg", "jpe", "jfif"],
+        "name": "JPEG 图像",
+        "description": "图片文件",
+        "role": "Viewer",
+        "contentTypes": ["public.jpeg"],
+        "mimeType": "image/jpeg"
+      },
+      {
+        "ext": ["png"],
+        "name": "PNG 图像",
+        "description": "图片文件",
+        "role": "Viewer",
+        "contentTypes": ["public.png"],
+        "mimeType": "image/png"
+      },
+      {
+        "ext": ["gif"],
+        "name": "GIF 图像",
+        "description": "图片文件",
+        "role": "Viewer",
+        "contentTypes": ["com.compuserve.gif"],
+        "mimeType": "image/gif"
+      },
+      {
+        "ext": ["webp"],
+        "name": "WebP 图像",
+        "description": "图片文件",
+        "role": "Viewer",
+        "contentTypes": ["org.webmproject.webp"],
+        "mimeType": "image/webp"
+      },
+      {
+        "ext": ["bmp"],
+        "name": "BMP 图像",
+        "description": "图片文件",
+        "role": "Viewer",
+        "contentTypes": ["com.microsoft.bmp"],
+        "mimeType": "image/bmp"
+      },
+      {
+        "ext": ["ico"],
+        "name": "ICO 图像",
+        "description": "图片文件",
+        "role": "Viewer",
+        "contentTypes": ["com.microsoft.ico"],
+        "mimeType": "image/vnd.microsoft.icon"
+      },
+      {
+        "ext": ["svg"],
+        "name": "SVG 图像",
+        "description": "图片文件",
+        "role": "Viewer",
+        "contentTypes": ["public.svg-image"],
+        "mimeType": "image/svg+xml"
+      },
+      {
+        "ext": ["tiff", "tif"],
+        "name": "TIFF 图像",
+        "description": "图片文件",
+        "role": "Viewer",
+        "contentTypes": ["public.tiff"],
+        "mimeType": "image/tiff"
+      },
+      {
+        "ext": ["avif"],
+        "name": "AVIF 图像",
+        "description": "图片文件",
+        "role": "Viewer",
+        "contentTypes": ["public.avif"],
+        "mimeType": "image/avif"
+      },
+      {
+        "ext": ["heic", "heif", "hif"],
+        "name": "HEIF 图像",
+        "description": "图片文件",
+        "role": "Viewer",
+        "contentTypes": ["public.heic", "public.heif"],
+        "mimeType": "image/heic;image/heif"
+      },
+      {
+        "ext": ["tga"],
+        "name": "TGA 图像",
+        "description": "图片文件",
+        "role": "Viewer",
+        "contentTypes": ["com.truevision.tga-image"],
+        "mimeType": "image/x-tga"
+      },
+      {
+        "ext": ["exr"],
+        "name": "OpenEXR 图像",
+        "description": "图片文件",
+        "role": "Viewer",
+        "contentTypes": ["com.ilm.openexr-image"],
+        "mimeType": "image/x-exr"
+      },
+      {
+        "ext": ["pbm", "pgm", "ppm", "pnm", "dds", "hdr", "qoi"],
         "name": "Image",
         "description": "图片文件",
-        "role": "Viewer"
+        "role": "Viewer",
+        "mimeType": "image/x-portable-anymap;image/vnd-ms.dds;image/vnd.radiance"
       }
     ],
+    "linux": {
+      "deb": {
+        "desktopTemplate": "./linux/sviewer.desktop"
+      }
+    },
     "windows": {
       "nsis": {
         "installMode": "both",

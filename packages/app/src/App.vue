@@ -264,7 +264,9 @@ watchEffect(() => {
 })
 
 // ── 设置：格式关联（Windows，只写 HKCU 免管理员）──────────
-// assoc_status 返回空列表（非 Windows / 读取失败）时整个区块不显示。
+// 应用内一键关联仅 Windows 有实现（macOS 靠 Info.plist 声明、Linux 靠 .desktop），
+// tab 只在 Windows 显示；assoc_status 返回空列表（读取失败）时区块内容也不显示。
+const showAssocTab = /Win/i.test(navigator.platform)
 interface AssocStatus { ext: string; app: string; isSviewer: boolean }
 const assocList = ref<AssocStatus[]>([])
 const assocSelected = ref<string[]>([])
@@ -815,7 +817,7 @@ onUnmounted(() => {
             <nav class="settings-nav">
               <button :class="{ on: settingsTab === 'general' }" @click="settingsTab = 'general'">常规</button>
               <button :class="{ on: settingsTab === 'view' }" @click="settingsTab = 'view'">查看</button>
-              <button :class="{ on: settingsTab === 'assoc' }" @click="settingsTab = 'assoc'">格式关联</button>
+              <button v-if="showAssocTab" :class="{ on: settingsTab === 'assoc' }" @click="settingsTab = 'assoc'">格式关联</button>
               <button :class="{ on: settingsTab === 'about' }" @click="settingsTab = 'about'">关于</button>
             </nav>
 

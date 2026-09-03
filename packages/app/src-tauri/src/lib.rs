@@ -748,7 +748,7 @@ pub fn run() {
     // updater 插件仅在桌面端注册（移动端自动跳过）
     let builder = tauri_updater_kit::attach_updater(builder);
 
-    builder
+    let app = builder
         .manage(LaunchFile::default())
         .setup(|app| {
             log::info!("SViewer v{} 启动", app.package_info().version);
@@ -782,8 +782,32 @@ pub fn run() {
             assoc_set,
             set_multi_instance,
         ])
-        .run(tauri::generate_context!())
+        .build(tauri::generate_context!())
         .expect("error while running sviewer");
+
+    // macOS 不走 argv 传文件：Finder 双击 / 右键打开经 Apple Event 投递，
+    // Tauri 转成 RunEvent::Opened。存入 LaunchFile（前端 onMounted 取走）并 emit
+    // open-file（已运行实例再打开时前端监听直接收），与 single-instance 转交路径一致。
+    #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
+    app.run(|app, event| {
+        if let tauri::RunEvent::Opened { urls } = &event {
+            for url in urls {
+                let Ok(path) = url.to_file_path() else { continue };
+                if !path.is_file() || !is_supported(&path) {
+                    continue;
+                }
+                let file = path.to_string_lossy().into_owned();
+                log::info!("系统打开文件：{file}");
+                if let Some(state) = app.try_state::<LaunchFile>() {
+                    *state.0.lock().unwrap() = Some(file.clone());
+                }
+                let _ = app.emit("open-file", &file);
+                break;
+            }
+        }
+    });
+    #[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "android")))]
+    app.run(|_app, _event| {});
 }
 
 #[cfg(test)]
