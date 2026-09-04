@@ -4,7 +4,11 @@ SViewer（素阅）的所有显著变更都将记录在此文件中。
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
-## Unreleased
+## 0.0.3
+
+### 新增
+
+- 信息面板新增「位置」区块：解析 EXIF 中的 GPS 经纬度，显示十进制坐标，并提供高德、百度、Google、Apple 四个地图按钮，点击后在浏览器中打开对应地图定位（自动声明 WGS-84 坐标系，由地图侧转换）。
 
 ### 变更
 
