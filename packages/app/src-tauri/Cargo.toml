@@ -33,6 +33,9 @@ image = "0.25"
 # EXIF 读取（crate 包名 kamadak-exif，import 名为 exif）
 kamadak-exif = "0.6"
 base64 = "0.22"
+# 逆地理编码（EXIF GPS 坐标 → 地名）：请求 Nominatim / 高德 / 百度的 HTTP 接口。
+# rustls 免系统 OpenSSL 依赖，json 用 serde_json 解析响应。
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 
 # 仅 Windows：把 SViewer 注册进系统「打开方式 / 默认应用」（写 HKCU，免管理员）
 [target.'cfg(windows)'.dependencies]

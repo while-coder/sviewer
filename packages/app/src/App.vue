@@ -25,6 +25,7 @@ import {
   pickCommonInfo,
   parseGpsCoord,
   mapLinks,
+  reverseGeocode,
   type ImageInfo,
 } from './viewer'
 import { useAppMenu, type AppMenuAction } from './menu'
@@ -252,6 +253,25 @@ const showDetail = ref(false)
 const commonInfo = computed(() => (info.value ? pickCommonInfo(info.value.exif) : []))
 // GPS 经纬度（十进制，WGS-84）；无 GPS 字段时为 null，详情抽屉不显示「位置」区块
 const gps = computed(() => (info.value ? parseGpsCoord(info.value.exif) : null))
+// GPS → 地名（逆地理编码）：打开详情抽屉且有 GPS 时才发请求，切换图片自动失效。
+// seq 防竞态：慢请求回来时若已切到别的图/别的坐标就丢弃。
+const geoName = ref<string | null>(null)
+const geoLoading = ref(false)
+let geoSeq = 0
+watch(
+  () => (showDetail.value ? gps.value : null),
+  (g) => {
+    geoName.value = null
+    if (!g) return
+    const seq = ++geoSeq
+    geoLoading.value = true
+    void reverseGeocode(g.lat, g.lng).then((addr) => {
+      if (seq !== geoSeq) return
+      geoName.value = addr
+      geoLoading.value = false
+    })
+  },
+)
 // 简略浮层只放前几条，保证面板不滚动；完整列表进「更多详情」抽屉
 const briefInfo = computed(() => commonInfo.value.slice(0, 6))
 const counter = computed(() =>
@@ -847,6 +867,8 @@ onUnmounted(() => {
         <template v-if="gps">
           <h4>位置</h4>
           <p class="gps-coord">{{ gps.lat.toFixed(6) }}, {{ gps.lng.toFixed(6) }}</p>
+          <p v-if="geoName" class="geo-name">{{ geoName }}</p>
+          <p v-else-if="geoLoading" class="geo-name pending">地名解析中…</p>
           <div class="map-links">
             <button v-for="m in mapLinks(gps.lat, gps.lng)" :key="m.name" class="map-btn" @click="openExternal(m.url)">
               {{ m.name }}
@@ -961,6 +983,26 @@ onUnmounted(() => {
                     <button :class="{ on: settings.showInfo }" @click="settings.showInfo = true">开</button>
                     <button :class="{ on: !settings.showInfo }" @click="settings.showInfo = false">关</button>
                   </div>
+                </div>
+
+                <div class="row">
+                  <span class="label">位置地名解析<small>详情抽屉打开时把 GPS 坐标解析成地名（需联网；结果自动缓存，请求限速约 1 条/秒）</small></span>
+                  <div class="seg">
+                    <button :class="{ on: settings.geoProvider === 'osm' }" @click="settings.geoProvider = 'osm'">OSM</button>
+                    <button :class="{ on: settings.geoProvider === 'amap' }" @click="settings.geoProvider = 'amap'">高德</button>
+                    <button :class="{ on: settings.geoProvider === 'baidu' }" @click="settings.geoProvider = 'baidu'">百度</button>
+                    <button :class="{ on: settings.geoProvider === 'off' }" @click="settings.geoProvider = 'off'">关闭</button>
+                  </div>
+                </div>
+
+                <div v-if="settings.geoProvider === 'amap'" class="row">
+                  <span class="label">高德 Key<small>lbs.amap.com 申请「Web 服务」类型 Key（个人实名免费）</small></span>
+                  <input v-model="settings.amapKey" class="text" type="password" placeholder="粘贴高德 Key" spellcheck="false" />
+                </div>
+
+                <div v-if="settings.geoProvider === 'baidu'" class="row">
+                  <span class="label">百度 AK<small>lbsyun.baidu.com 创建「服务端」类型应用（个人实名免费）</small></span>
+                  <input v-model="settings.baiduKey" class="text" type="password" placeholder="粘贴百度 AK" spellcheck="false" />
                 </div>
               </template>
 
@@ -1215,6 +1257,18 @@ onUnmounted(() => {
 .detail .none { margin: 0; color: var(--fg-muted); }
 /* GPS 位置：等宽坐标 + 两列地图按钮 */
 .detail .gps-coord { margin: 0 0 8px; font-family: ui-monospace, Consolas, monospace; letter-spacing: 0.2px; }
+/* 逆地理编码出的地名：最多两行，超出省略；解析中给弱化占位 */
+.detail .geo-name {
+  margin: -2px 0 8px;
+  color: var(--fg-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.detail .geo-name.pending { opacity: 0.6; }
 .detail .map-links { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .detail .map-btn {
   background: var(--row); border: none;
@@ -1368,21 +1422,35 @@ onUnmounted(() => {
 .page-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
 .page-head h3 { margin: 0; }
 
-/* 设置行：左标签右分段选择器 */
+/* 设置行：左标签右分段选择器；放不下时整组换行（seg 靠右），绝不挤压按钮 */
 .row {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  display: flex; align-items: center; justify-content: space-between; gap: 6px 12px;
+  flex-wrap: wrap;
   padding: 9px 0;
 }
 .row .label { flex-shrink: 0; }
 .row .label small { display: block; color: var(--fg-muted); font-size: 11px; margin-top: 2px; }
-.seg { display: flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.seg { display: flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; flex-shrink: 0; margin-left: auto; }
 .seg button {
   background: none; border: none; color: var(--fg-muted); cursor: pointer;
-  font-size: 12px; padding: 4px 10px;
+  font-size: 12px; padding: 4px 10px; white-space: nowrap; flex-shrink: 0;
 }
 .seg button + button { border-left: 1px solid var(--border); }
 .seg button:hover { background: var(--hover); }
 .seg button.on { background: var(--primary); color: #fff; }
+/* 设置行里的文本输入（如逆地理 Key）：与 seg 同框风格 */
+.row input.text {
+  width: 240px;
+  padding: 5px 9px;
+  font: inherit;
+  color: var(--fg);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  outline: none;
+}
+.row input.text:focus { border-color: var(--primary); }
+.row input.text::placeholder { color: var(--fg-muted); }
 
 /* 格式关联：工具行 + 格式列表（自动撑满弹窗剩余高度） */
 .assoc-actions { display: flex; align-items: center; gap: 8px; }

@@ -13,6 +13,7 @@ use serde::Serialize;
 use tauri::{Emitter, Manager, State};
 
 mod assoc;
+mod geo;
 mod native_heic;
 
 /// 受支持的图片扩展名（小写，不含点）。用于目录列举与启动参数识别。
@@ -662,6 +663,19 @@ fn apply_transform(path: String, rotation: u32, flip: bool) -> Result<(), String
     .map(|_| ())
 }
 
+/// 逆地理编码：EXIF GPS 坐标（WGS-84）→ 一行简略地名。详情抽屉打开时由前端懒调用。
+/// provider：osm（免 Key）/ amap / baidu（各自需要用户在设置里填的 Key）。
+#[tauri::command]
+async fn reverse_geocode(
+    lat: f64,
+    lng: f64,
+    provider: String,
+    amap_key: Option<String>,
+    baidu_key: Option<String>,
+) -> Result<Option<String>, String> {
+    geo::reverse_geocode(lat, lng, &provider, amap_key.as_deref(), baidu_key.as_deref()).await
+}
+
 /// 各扩展名当前默认应用状态（设置弹窗「格式关联」列表）。非 Windows 返回空列表。
 #[tauri::command]
 fn assoc_status() -> Vec<assoc::AssocStatus> {
@@ -797,6 +811,7 @@ pub fn run() {
             assoc_status,
             assoc_set,
             set_multi_instance,
+            reverse_geocode,
         ])
         .build(tauri::generate_context!())
         .expect("error while running sviewer");
