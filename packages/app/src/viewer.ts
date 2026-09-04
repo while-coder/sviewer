@@ -411,6 +411,55 @@ export function cleanExifValue(value: string): string {
   return value.replace(/^"(.*)"$/s, '$1')
 }
 
+/** 解析单个 GPS 坐标值：兼容 kamadak 的有理数展示 "36/1, 6/1, 1230/100"
+ *  与度分秒展示 `36° 6' 12.30"` 两种格式，返回十进制度。 */
+function parseCoord(value: string): number | null {
+  const parts = [...value.matchAll(/(\d+(?:\.\d+)?)(?:\/(\d+(?:\.\d+)?))?/g)]
+  if (parts.length === 0) return null
+  const nums = parts.slice(0, 3).map((m) => {
+    const n = parseFloat(m[1])
+    return m[2] ? n / parseFloat(m[2]) : n
+  })
+  return nums[0] + (nums[1] ?? 0) / 60 + (nums[2] ?? 0) / 3600
+}
+
+/** 从 EXIF 里提取 GPS 经纬度（十进制度，WGS-84）；无 GPS 或解析失败返回 null。 */
+export function parseGpsCoord(exif: ExifEntry[]): { lat: number; lng: number } | null {
+  const find = (tag: string) => {
+    const e = exif.find((x) => x.tag === tag)
+    return e ? cleanExifValue(e.value) : null
+  }
+  const latRaw = find('GPSLatitude')
+  const lngRaw = find('GPSLongitude')
+  if (!latRaw || !lngRaw) return null
+  let lat = parseCoord(latRaw)
+  let lng = parseCoord(lngRaw)
+  if (lat == null || lng == null) return null
+  // 南纬/西经为负；参考方向缺失时按北纬东经处理
+  if ((find('GPSLatitudeRef') ?? 'N').toUpperCase().startsWith('S')) lat = -lat
+  if ((find('GPSLongitudeRef') ?? 'E').toUpperCase().startsWith('W')) lng = -lng
+  return { lat, lng }
+}
+
+/** 一个地图打开入口：名称 + URL。 */
+export interface MapLink {
+  name: string
+  url: string
+}
+
+/** 由十进制经纬度生成各地图的打开链接。EXIF 坐标为 WGS-84：
+ *  高德（默认 GCJ-02）用 coordinate=wgs84、百度（默认 BD-09）用 coord_type=wgs84
+ *  声明坐标系，由地图侧转换；Google / Apple 直接用 WGS-84。 */
+export function mapLinks(lat: number, lng: number): MapLink[] {
+  const pos = `${lng},${lat}`
+  return [
+    { name: '高德地图', url: `https://uri.amap.com/marker?position=${pos}&coordinate=wgs84&name=图片位置` },
+    { name: '百度地图', url: `https://api.map.baidu.com/marker?location=${lat},${lng}&coord_type=wgs84&content=图片位置&output=html&src=sviewer` },
+    { name: 'Google 地图', url: `https://www.google.com/maps/search/?api=1&query=${lat},${lng}` },
+    { name: 'Apple 地图', url: `https://maps.apple.com/?ll=${lat},${lng}&q=%E5%9B%BE%E7%89%87%E4%BD%8D%E7%BD%AE` },
+  ]
+}
+
 /** 一条常用信息（标签 + 中文说明 + 值）。 */
 export interface CommonEntry {
   label: string

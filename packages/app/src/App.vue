@@ -22,6 +22,8 @@ import {
   humanSize,
   exifLabel,
   pickCommonInfo,
+  parseGpsCoord,
+  mapLinks,
   type ImageInfo,
 } from './viewer'
 import { useAppMenu, type AppMenuAction } from './menu'
@@ -244,6 +246,8 @@ const index = computed(() => (currentPath.value ? siblings.value.indexOf(current
 // 详情抽屉（完整 EXIF）
 const showDetail = ref(false)
 const commonInfo = computed(() => (info.value ? pickCommonInfo(info.value.exif) : []))
+// GPS 经纬度（十进制，WGS-84）；无 GPS 字段时为 null，详情抽屉不显示「位置」区块
+const gps = computed(() => (info.value ? parseGpsCoord(info.value.exif) : null))
 // 简略浮层只放前几条，保证面板不滚动；完整列表进「更多详情」抽屉
 const briefInfo = computed(() => commonInfo.value.slice(0, 6))
 const counter = computed(() =>
@@ -789,6 +793,15 @@ onUnmounted(() => {
           <div class="stat"><span class="k">尺寸</span><span class="v">{{ info.width }} × {{ info.height }}</span></div>
           <div class="stat"><span class="k">格式</span><span class="v">{{ info.format }}</span></div>
         </div>
+        <template v-if="gps">
+          <h4>位置</h4>
+          <p class="gps-coord">{{ gps.lat.toFixed(6) }}, {{ gps.lng.toFixed(6) }}</p>
+          <div class="map-links">
+            <button v-for="m in mapLinks(gps.lat, gps.lng)" :key="m.name" class="map-btn" @click="openExternal(m.url)">
+              {{ m.name }}
+            </button>
+          </div>
+        </template>
         <h4>EXIF <span class="pill">{{ info.exif.length }}</span></h4>
         <dl v-if="info.exif.length > 0">
           <div v-for="ex in info.exif" :key="ex.tag">
@@ -1149,6 +1162,15 @@ onUnmounted(() => {
 .detail dl > div:nth-child(odd) { background: var(--row); }
 .detail dl > div:hover { background: var(--row-hover); }
 .detail .none { margin: 0; color: var(--fg-muted); }
+/* GPS 位置：等宽坐标 + 两列地图按钮 */
+.detail .gps-coord { margin: 0 0 8px; font-family: ui-monospace, Consolas, monospace; letter-spacing: 0.2px; }
+.detail .map-links { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.detail .map-btn {
+  background: var(--row); border: none;
+  border-radius: 8px; color: var(--fg); cursor: pointer;
+  font-size: 12px; padding: 6px 0;
+}
+.detail .map-btn:hover { background: var(--accent-soft); }
 .slide-enter-active, .slide-leave-active { transition: transform 0.18s ease, opacity 0.18s ease; }
 .slide-enter-from, .slide-leave-to { transform: translateX(-24px); opacity: 0; }
 
