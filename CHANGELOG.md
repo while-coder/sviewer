@@ -4,6 +4,13 @@ SViewer（素阅）的所有显著变更都将记录在此文件中。
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## Unreleased
+
+### 变更
+
+- 非 web 原生格式（HEIC/HEIF、TIFF/EXR/TGA 等）显示链路统一重做：解码像素在子线程直接转成 ImageBitmap 交 canvas 绘制，去掉原来的 WebP/PNG 重编码与二次解码。HEIC 打开速度从约 1-2 秒降到零点几秒（12MP 实测系统解码 231ms），大 TIFF 同样受益；Windows 下改由 WIC 直接输出 RGBA，省掉一次逐像素颜色序交换。
+- 翻页时在空闲时段预载同目录左右相邻图片（含全部非原生格式），来回切换直接命中缓存出图；位图缓存带像素总量上限，超大图（48MP）自动少缓存防内存失控。
+
 ## 0.0.2
 
 ### 修复

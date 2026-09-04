@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, computed, nextTick, watch, watchEffect, onMounted, onUnmounted } from 'vue'
+import { ref, shallowRef, reactive, computed, nextTick, watch, watchEffect, onMounted, onUnmounted } from 'vue'
 import { listen, emit } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
@@ -8,10 +8,11 @@ import { openUrl } from '@tauri-apps/plugin-opener'
 import { convertFileSrc, invoke } from '@tauri-apps/api/core'
 import { open as openDialog, save as saveDialog } from '@tauri-apps/plugin-dialog'
 import {
-  resolveImageSrc,
+  resolveImage,
   listSiblings,
   readImageInfo,
   getLaunchFile,
+  preloadImage,
   saveImageAs,
   saveEditsTo,
   encodeTo,
@@ -34,6 +35,9 @@ import { UpdaterDialog, useTauriUpdater } from '@while-coder/tauri-updater-vue'
 // ── 状态 ───────────────────────────────────────────────
 const currentPath = ref<string | null>(null)
 const imgSrc = ref<string>('')
+// HEIC 解码出的位图（与 imgSrc 二选一显示）；shallowRef 避免 ImageBitmap 被 proxy 包裹
+const bitmap = shallowRef<ImageBitmap | null>(null)
+const canvasEl = ref<HTMLCanvasElement | null>(null)
 const siblings = ref<string[]>([])
 const info = ref<ImageInfo | null>(null)
 const loadError = ref<string>('')
@@ -406,6 +410,21 @@ function onWinResize() {
 // ── 打开图片 ───────────────────────────────────────────
 // 请求序号：HEIC 解码慢，快速切换时只让最新一次请求的结果生效
 let loadSeq = 0
+
+/** 空闲时预载当前图的左右邻居，翻页直接命中缓存出图。
+ *  放空闲回调：避免和当前图的解码/编码抢 CPU，拖慢本张显示。 */
+function preloadNeighbors() {
+  const idle = (fn: () => void) =>
+    'requestIdleCallback' in window ? requestIdleCallback(fn, { timeout: 2000 }) : setTimeout(fn, 300)
+  idle(() => {
+    const i = siblings.value.indexOf(currentPath.value ?? '')
+    if (i < 0) return
+    for (const p of [siblings.value[i - 1], siblings.value[i + 1]]) {
+      if (p) preloadImage(p)
+    }
+  })
+}
+
 async function openPath(path: string, loadSiblings = true) {
   const seq = ++loadSeq
   loading.value = true
@@ -419,13 +438,22 @@ async function openPath(path: string, loadSiblings = true) {
   edit.flip = false
   resetView()
   try {
-    const src = await resolveImageSrc(path)
+    const result = await resolveImage(path)
     if (seq !== loadSeq) return // 已被后续请求取代，丢弃
-    imgSrc.value = src
+    if (result.kind === 'bitmap') {
+      // HEIC：位图交 <canvas> 绘制（见 bitmap 的 watch），不走 <img>
+      imgSrc.value = ''
+      bitmap.value = result.bitmap
+      applyNaturalSize(result.bitmap.width, result.bitmap.height)
+    } else {
+      bitmap.value = null
+      imgSrc.value = result.src
+    }
   } catch (e) {
     if (seq !== loadSeq) return
     loadError.value = String(e)
     imgSrc.value = ''
+    bitmap.value = null
     console.error('加载图片失败', path, e)
   }
   if (seq !== loadSeq) return
@@ -439,9 +467,14 @@ async function openPath(path: string, loadSiblings = true) {
   if (loadSiblings) {
     listSiblings(path)
       .then((list) => {
-        if (seq === loadSeq) siblings.value = list
+        if (seq !== loadSeq) return
+        siblings.value = list
+        preloadNeighbors()
       })
       .catch((e) => console.warn('读取目录失败', e))
+  } else {
+    // 同目录切换：列表已就绪，直接排预载
+    preloadNeighbors()
   }
 }
 
@@ -544,16 +577,32 @@ function onStageDblClick() {
   fitAtDown = false
 }
 
-function onImgLoad(e: Event) {
-  const img = e.target as HTMLImageElement
-  natural.w = img.naturalWidth
-  natural.h = img.naturalHeight
-  // 图片刚加载完（或快速切换）时按默认视图设置重算
+/** 图片固有尺寸就绪（<img> onload / HEIC 位图解码完）：按默认视图设置重算。 */
+function applyNaturalSize(w: number, h: number) {
+  natural.w = w
+  natural.h = h
   if (view.fit) {
     if (settings.defaultView === 'actual') actualSize()
     else fitView()
   }
 }
+
+function onImgLoad(e: Event) {
+  const img = e.target as HTMLImageElement
+  applyNaturalSize(img.naturalWidth, img.naturalHeight)
+}
+
+// HEIC 位图画进 canvas。nextTick 等 <canvas> 挂载；先设 width/height 再画
+// （赋值即清空旧内容）。位图即使之后被 LRU close，已画上的内容也不受影响。
+watch(bitmap, async (b) => {
+  if (!b) return
+  await nextTick()
+  const el = canvasEl.value
+  if (!el) return
+  el.width = b.width
+  el.height = b.height
+  el.getContext('2d')!.drawImage(b, 0, 0)
+})
 
 // 全屏
 const fullscreen = ref(false)
@@ -729,6 +778,8 @@ onUnmounted(() => {
       <template v-if="imgSrc">
         <img :src="imgSrc" :style="imgStyle" class="pic" :class="{ outline: settings.outline }" draggable="false" alt="" @load="onImgLoad" />
       </template>
+      <!-- HEIC 位图直显：canvas 的 CSS 变换与 <img> 完全同构（见 imgStyle） -->
+      <canvas v-else-if="bitmap" ref="canvasEl" class="pic" :class="{ outline: settings.outline }" :style="imgStyle" />
       <div v-else-if="loadError" class="empty error">
         <p>无法显示该图片</p>
         <pre>{{ loadError }}</pre>

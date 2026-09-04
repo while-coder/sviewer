@@ -248,6 +248,21 @@ fn decode_heic(path: String) -> Result<tauri::ipc::Response, String> {
     native_heic::decode(&path).map(tauri::ipc::Response::new)
 }
 
+/// 任意格式解码为「头 + RGBA8」裸像素（主窗口 canvas 直显）。
+/// 与 decode_to_png 同源（decode_any），但省掉 PNG 编码 + 前端再解码两趟；
+/// HEIC/HEIF 走 decode_heic，不经此命令。与 decode_to_png 一样不套用 EXIF 方向。
+#[tauri::command]
+fn decode_raw(path: String) -> Result<tauri::ipc::Response, String> {
+    let img = decode_any(&path)?;
+    let rgba = img.to_rgba8();
+    let (w, h) = (rgba.width(), rgba.height());
+    let mut out = Vec::with_capacity(native_heic::HEADER_LEN + w as usize * h as usize * 4);
+    out.extend_from_slice(&w.to_le_bytes());
+    out.extend_from_slice(&h.to_le_bytes());
+    out.extend_from_slice(rgba.as_raw());
+    Ok(tauri::ipc::Response::new(out))
+}
+
 /// 裁剪矩形：显示空间（EXIF 归一化 + 旋转 + 镜像之后）的像素坐标，左上原点。
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -772,6 +787,7 @@ pub fn run() {
             read_image_info,
             decode_to_png,
             decode_heic,
+            decode_raw,
             decode_thumb,
             save_image_as,
             encode_image,

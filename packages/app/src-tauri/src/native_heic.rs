@@ -1,7 +1,7 @@
 //! 平台原生 HEIC/HEIF 解码：Windows 走 WIC，macOS 走 Image I/O。
 //!
 //! 输出统一为：8 字节头（宽 u32 LE + 高 u32 LE）+ RGBA8 像素数据，
-//! 前端在子线程转成 WebP blob 显示（见 heic-worker.ts）。
+//! 前端在子线程包成 ImageBitmap 供 canvas 直显（见 heic-worker.ts）。
 //!
 //! 失败（Linux、系统没装 HEIF/HEVC 解码扩展等）返回 Err，前端自动回退
 //! libheif WASM 解码，功能无损。
@@ -37,7 +37,7 @@ mod imp {
     use windows::core::HSTRING;
     use windows::Win32::Foundation::GENERIC_READ;
     use windows::Win32::Graphics::Imaging::{
-        CLSID_WICImagingFactory, GUID_WICPixelFormat32bppBGRA, IWICBitmapSource, IWICImagingFactory,
+        CLSID_WICImagingFactory, GUID_WICPixelFormat32bppRGBA, IWICBitmapSource, IWICImagingFactory,
         WICBitmapDitherTypeNone, WICBitmapPaletteTypeCustom, WICDecodeMetadataCacheOnDemand,
     };
     use windows::Win32::System::Com::{
@@ -75,9 +75,10 @@ mod imp {
                 return Err("HEIF 尺寸为 0".into());
             }
 
-            // 统一转成 32bppBGRA 再拷贝（多数 HEIF 帧本来就是该格式，转换零开销）
+            // 统一转成 32bppRGBA（前端 ImageData 是 RGBA 序）。多数 HEIF 帧原生是
+            // BGRA，由 WIC 的格式转换器一次性转好，省掉 Rust 侧逐像素交换。
             let source: IWICBitmapSource =
-                if frame.GetPixelFormat().map_err(|e| e.to_string())? == GUID_WICPixelFormat32bppBGRA {
+                if frame.GetPixelFormat().map_err(|e| e.to_string())? == GUID_WICPixelFormat32bppRGBA {
                     frame
                 } else {
                     let conv = factory
@@ -85,7 +86,7 @@ mod imp {
                         .map_err(|e| format!("创建格式转换器失败：{e}"))?;
                     conv.Initialize(
                         &frame,
-                        &GUID_WICPixelFormat32bppBGRA,
+                        &GUID_WICPixelFormat32bppRGBA,
                         WICBitmapDitherTypeNone,
                         None,
                         0.0,
@@ -101,10 +102,6 @@ mod imp {
                 .CopyPixels(std::ptr::null(), stride as u32, &mut pixels)
                 .map_err(|e| format!("拷贝像素失败：{e}"))?;
 
-            // BGRA → RGBA：交换每 4 字节中的第 0、2 位
-            for px in pixels.chunks_exact_mut(4) {
-                px.swap(0, 2);
-            }
             super::pack_rgba(width, height, pixels)
         }
     }
