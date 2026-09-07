@@ -4,28 +4,28 @@ import { listen, emit } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { getVersion } from '@tauri-apps/api/app'
-import { openUrl } from '@tauri-apps/plugin-opener'
-import { convertFileSrc, invoke } from '@tauri-apps/api/core'
+import { convertFileSrc } from '@tauri-apps/api/core'
 import { open as openDialog } from '@tauri-apps/plugin-dialog'
 import {
   listSiblings,
   readImageInfo,
   getLaunchFile,
   saveEditsTo,
-} from './lib/bridge'
-import { resolveImage, preloadImage } from './lib/decode'
-import { extOf, OPEN_FILTERS } from './lib/formats'
-import { saveAsViaDialog } from './lib/save'
-import { useImageView } from './composables/use-image-view'
-import { useSaveability } from './composables/use-saveability'
-import { useThemeSync } from './composables/use-theme-sync'
-import { humanSize } from './lib/util'
-import { exifLabel, pickCommonInfo, parseGpsCoord } from './lib/exif'
-import { mapLinks, reverseGeocode } from './lib/geo'
-import type { SaveFormat, ImageEdits, ImageInfo } from './lib/types'
-import { useAppMenu, type AppMenuAction } from './menu'
-import { settings } from './lib/settings'
+} from '../../lib/bridge'
+import { resolveImage, preloadImage } from '../../lib/decode'
+import { extOf, OPEN_FILTERS } from '../../lib/formats'
+import { saveAsViaDialog } from '../../lib/save'
+import { useImageView } from '../../composables/use-image-view'
+import { useSaveability } from '../../composables/use-saveability'
+import { useThemeSync } from '../../composables/use-theme-sync'
+import { useAppMenu, type AppMenuAction } from '../../composables/use-app-menu'
+import { humanSize, openExternal } from '../../lib/util'
+import { exifLabel, pickCommonInfo, parseGpsCoord } from '../../lib/exif'
+import { mapLinks, reverseGeocode } from '../../lib/geo'
+import type { SaveFormat, ImageEdits, ImageInfo } from '../../lib/types'
+import { settings } from '../../lib/settings'
 import { UpdaterDialog, useTauriUpdater } from '@while-coder/tauri-updater-vue'
+import SettingsDialog from './SettingsDialog.vue'
 
 // ── 状态 ───────────────────────────────────────────────
 const currentPath = ref<string | null>(null)
@@ -44,8 +44,9 @@ const showInfo = computed({
 const loading = ref(false)
 // 关于 / 设置 弹窗（null = 关闭）
 const modal = ref<'settings' | null>(null)
-// 设置弹窗当前分类页
-const settingsTab = ref<'general' | 'view' | 'assoc' | 'about'>('general')
+// 设置弹窗初始分类页（打开后页内切换由 SettingsDialog 自己维护）
+type SettingsTab = 'general' | 'view' | 'assoc' | 'about'
+const settingsTab = ref<SettingsTab>('general')
 /** 打开设置弹窗并切到「关于」页（菜单/右键的「关于」入口）。 */
 function openAbout() {
   settingsTab.value = 'about'
@@ -53,48 +54,9 @@ function openAbout() {
 }
 const appVersion = ref('')
 
-/** 相关链接（GitHub 仓库 / 发布页 / Issues）。 */
-const GITHUB_URL = 'https://github.com/while-coder/sviewer'
-const RELEASES_URL = `${GITHUB_URL}/releases/latest`
-const ISSUES_URL = `${GITHUB_URL}/issues`
-
-/** 用系统默认浏览器打开外链。 */
-async function openExternal(url: string) {
-  try {
-    await openUrl(url)
-  } catch (e) {
-    console.error('打开链接失败', url, e)
-  }
-}
-
 // ── 应用内更新：UpdaterDialog 自动检查/下载/安装；「关于」页展示状态与手动检查 ──
+// updater 只在这里创建一次，经 SettingsDialog 下传 AboutPage。
 const updater = useTauriUpdater()
-const updateBusy = computed(() => {
-  const s = updater.updateStatus.value
-  return s === 'checking' || s === 'downloading'
-})
-// 版本徽章文案与配色，随检查状态切换（参考 wmdebugger 设置页）
-const versionTagType = computed(() => {
-  switch (updater.updateStatus.value) {
-    case 'latest': case 'installed': return 'ok'
-    case 'available': return 'warn'
-    case 'error': return 'err'
-    default: return ''
-  }
-})
-const versionTagText = computed(() => {
-  switch (updater.updateStatus.value) {
-    case 'latest': return '已是最新'
-    case 'installed': return '已就绪'
-    case 'available': return updater.updateVersion.value ? `新版本 v${updater.updateVersion.value}` : '发现新版本'
-    case 'checking': return '检查中'
-    case 'error': return '检查失败'
-    default: return appVersion.value ? `v${appVersion.value}` : '未检测'
-  }
-})
-function checkUpdate() {
-  void updater.checkForUpdate()
-}
 
 // ── 批量转换：独立窗口（只开一个，重复触发聚焦已有窗口）─────
 // 批量窗口是单独的 WebviewWindow（label='batch'，入口 batch.html），
@@ -272,46 +234,6 @@ watchEffect(() => {
 
 // ── 平台判定（快捷键提示 / Esc 行为 / 设置页 tab 显隐共用）──
 const isMac = /Mac/i.test(navigator.platform)
-
-// ── 设置：格式关联（Windows，只写 HKCU 免管理员）──────────
-// 应用内一键关联仅 Windows 有实现（macOS 靠 Info.plist 声明、Linux 靠 .desktop），
-// tab 只在 Windows 显示；assoc_status 返回空列表（读取失败）时区块内容也不显示。
-const showAssocTab = /Win/i.test(navigator.platform)
-interface AssocStatus { ext: string; app: string; isSviewer: boolean }
-const assocList = ref<AssocStatus[]>([])
-const assocSelected = ref<string[]>([])
-const assocBusy = ref(false)
-const allAssocChecked = computed(
-  () => assocList.value.length > 0 && assocSelected.value.length === assocList.value.length,
-)
-function toggleAllAssoc(e: Event) {
-  assocSelected.value = (e.target as HTMLInputElement).checked
-    ? assocList.value.map((a) => a.ext)
-    : []
-}
-async function loadAssoc() {
-  try {
-    assocList.value = await invoke<AssocStatus[]>('assoc_status')
-  } catch (e) {
-    console.warn('读取格式关联失败', e)
-  }
-}
-async function applyAssoc(exts: string[]) {
-  if (!exts.length || assocBusy.value) return
-  assocBusy.value = true
-  try {
-    await invoke('assoc_set', { exts })
-    await loadAssoc()
-  } catch (e) {
-    window.alert(`关联失败：${e}`)
-  } finally {
-    assocBusy.value = false
-  }
-}
-// 打开设置弹窗时才拉取关联状态
-watch(modal, (m) => {
-  if (m === 'settings') loadAssoc()
-})
 
 // ── 系统菜单（窗口菜单栏）→ 映射到本地函数 ──────────────
 const menuActions: Record<AppMenuAction, () => void> = {
@@ -752,198 +674,15 @@ onUnmounted(() => {
       </nav>
     </div>
 
-    <!-- 设置弹窗：左侧分类菜单 + 右侧内容页 -->
-    <transition name="fade">
-      <div v-if="modal === 'settings'" class="modal-backdrop" @mousedown.self="modal = null">
-        <div class="modal settings">
-          <header>
-            <span>设置</span>
-            <button class="close" title="关闭" @click="modal = null">×</button>
-          </header>
-
-          <div class="settings-body">
-            <nav class="settings-nav">
-              <button :class="{ on: settingsTab === 'general' }" @click="settingsTab = 'general'">常规</button>
-              <button :class="{ on: settingsTab === 'view' }" @click="settingsTab = 'view'">查看</button>
-              <button v-if="showAssocTab" :class="{ on: settingsTab === 'assoc' }" @click="settingsTab = 'assoc'">格式关联</button>
-              <button :class="{ on: settingsTab === 'about' }" @click="settingsTab = 'about'">关于</button>
-            </nav>
-
-            <div class="settings-page">
-              <template v-if="settingsTab === 'general'">
-                <h3>常规</h3>
-                <div class="row">
-                  <span class="label">主题</span>
-                  <div class="seg">
-                    <button :class="{ on: settings.theme === 'dark' }" @click="settings.theme = 'dark'">深色</button>
-                    <button :class="{ on: settings.theme === 'light' }" @click="settings.theme = 'light'">浅色</button>
-                    <button :class="{ on: settings.theme === 'system' }" @click="settings.theme = 'system'">跟随系统</button>
-                  </div>
-                </div>
-
-                <div class="row">
-                  <span class="label">按 Esc 关闭程序<small>无浮层时按 Esc 退出程序，而不是最小化窗口</small></span>
-                  <div class="seg">
-                    <button :class="{ on: settings.escClose }" @click="settings.escClose = true">开</button>
-                    <button :class="{ on: !settings.escClose }" @click="settings.escClose = false">关</button>
-                  </div>
-                </div>
-
-                <div class="row">
-                  <span class="label">允许多开<small>可同时打开多个素阅窗口，重启后生效</small></span>
-                  <div class="seg">
-                    <button :class="{ on: settings.allowMulti }" @click="settings.allowMulti = true">开</button>
-                    <button :class="{ on: !settings.allowMulti }" @click="settings.allowMulti = false">关</button>
-                  </div>
-                </div>
-              </template>
-
-              <template v-else-if="settingsTab === 'view'">
-                <h3>查看</h3>
-                <div class="row">
-                  <span class="label">打开图片时</span>
-                  <div class="seg">
-                    <button :class="{ on: settings.defaultView === 'fit' }" @click="settings.defaultView = 'fit'">适应窗口</button>
-                    <button :class="{ on: settings.defaultView === 'actual' }" @click="settings.defaultView = 'actual'">原始大小</button>
-                  </div>
-                </div>
-
-                <div class="row">
-                  <span class="label">背景棋盘格</span>
-                  <div class="seg">
-                    <button :class="{ on: settings.checkerboard }" @click="settings.checkerboard = true">开</button>
-                    <button :class="{ on: !settings.checkerboard }" @click="settings.checkerboard = false">关</button>
-                  </div>
-                </div>
-
-                <div class="row">
-                  <span class="label">显示图片边缘</span>
-                  <div class="seg">
-                    <button :class="{ on: settings.outline }" @click="settings.outline = true">开</button>
-                    <button :class="{ on: !settings.outline }" @click="settings.outline = false">关</button>
-                  </div>
-                </div>
-
-                <div class="row">
-                  <span class="label">图片信息面板</span>
-                  <div class="seg">
-                    <button :class="{ on: settings.showInfo }" @click="settings.showInfo = true">开</button>
-                    <button :class="{ on: !settings.showInfo }" @click="settings.showInfo = false">关</button>
-                  </div>
-                </div>
-
-                <div class="row">
-                  <span class="label">位置地名解析<small>详情抽屉打开时把 GPS 坐标解析成地名（需联网；结果自动缓存，请求限速约 1 条/秒）</small></span>
-                  <div class="seg">
-                    <button :class="{ on: settings.geoProvider === 'osm' }" @click="settings.geoProvider = 'osm'">OSM</button>
-                    <button :class="{ on: settings.geoProvider === 'amap' }" @click="settings.geoProvider = 'amap'">高德</button>
-                    <button :class="{ on: settings.geoProvider === 'baidu' }" @click="settings.geoProvider = 'baidu'">百度</button>
-                    <button :class="{ on: settings.geoProvider === 'off' }" @click="settings.geoProvider = 'off'">关闭</button>
-                  </div>
-                </div>
-
-                <div v-if="settings.geoProvider === 'amap'" class="row">
-                  <span class="label">高德 Key<small>lbs.amap.com 申请「Web 服务」类型 Key（个人实名免费）</small></span>
-                  <input v-model="settings.amapKey" class="text" type="password" placeholder="粘贴高德 Key" spellcheck="false" />
-                </div>
-
-                <div v-if="settings.geoProvider === 'baidu'" class="row">
-                  <span class="label">百度 AK<small>lbsyun.baidu.com 创建「服务端」类型应用（个人实名免费）</small></span>
-                  <input v-model="settings.baiduKey" class="text" type="password" placeholder="粘贴百度 AK" spellcheck="false" />
-                </div>
-              </template>
-
-              <!-- 格式关联（仅 Windows）：勾选格式后一键设为默认打开方式 -->
-              <template v-else-if="settingsTab === 'assoc'">
-                <div class="page-head">
-                  <h3>格式关联</h3>
-                  <span v-if="assocList.length" class="assoc-actions">
-                    <label class="assoc-all"><input type="checkbox" :checked="allAssocChecked" @change="toggleAllAssoc" />全选</label>
-                    <button class="mini" :disabled="!assocSelected.length || assocBusy" @click="applyAssoc(assocSelected)">关联所选</button>
-                    <button class="mini" :disabled="assocBusy" @click="applyAssoc(assocList.map((a) => a.ext))">关联全部</button>
-                  </span>
-                </div>
-                <template v-if="assocList.length">
-                  <div class="assoc-list">
-                    <label v-for="a in assocList" :key="a.ext" class="assoc-item">
-                      <input v-model="assocSelected" type="checkbox" :value="a.ext" />
-                      <span class="ext">.{{ a.ext }}</span>
-                      <span class="app" :class="{ ours: a.isSviewer }">{{ a.app }}</span>
-                    </label>
-                  </div>
-                  <p class="assoc-tip">部分格式可能被系统「默认应用」锁定，关联后仍打开异常时请在 Windows 设置 → 默认应用中确认。</p>
-                </template>
-                <p v-else class="assoc-tip">当前平台不支持格式关联。</p>
-              </template>
-
-              <template v-else>
-                <div class="about-page">
-                  <section class="about-hero">
-                    <img class="about-logo" src="/sviewer-icon.png" alt="素阅" />
-                    <div class="about-product">
-                      <div class="about-title-row">
-                        <h2>素阅</h2>
-                        <span v-if="appVersion" class="vtag">v{{ appVersion }}</span>
-                      </div>
-                      <p>轻量级本地图片查看器</p>
-                      <span>支持 JPG / PNG / GIF / WebP / AVIF / TIFF / HEIC 等</span>
-                    </div>
-                  </section>
-
-                  <div class="about-links">
-                    <button class="about-link-card" type="button" @click="openExternal(GITHUB_URL)">
-                      <span class="about-link-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.87c-2.78.6-3.37-1.18-3.37-1.18-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.9 1.53 2.35 1.09 2.92.83.09-.65.35-1.09.64-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02A9.6 9.6 0 0 1 12 6.82a9.6 9.6 0 0 1 2.5.34c1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.56 4.93.36.31.68.92.68 1.86v2.76c0 .27.18.58.69.48A10 10 0 0 0 12 2Z" /></svg>
-                      </span>
-                      <span class="about-link-copy">
-                        <strong>GitHub</strong>
-                        <small>github.com/while-coder/sviewer</small>
-                      </span>
-                      <span class="about-link-arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 17 17 7M7 7h10v10" /></svg></span>
-                    </button>
-
-                    <button class="about-link-card" type="button" @click="openExternal(ISSUES_URL)">
-                      <span class="about-link-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" /></svg>
-                      </span>
-                      <span class="about-link-copy">
-                        <strong>问题反馈</strong>
-                        <small>提交 Bug 或功能建议</small>
-                      </span>
-                      <span class="about-link-arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 17 17 7M7 7h10v10" /></svg></span>
-                    </button>
-
-                    <button class="about-link-card" type="button" @click="openExternal(RELEASES_URL)">
-                      <span class="about-link-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="m7 10 5 5 5-5" /><path d="M12 15V3" /></svg>
-                      </span>
-                      <span class="about-link-copy">
-                        <strong>版本发布</strong>
-                        <small>查看各平台安装包与更新日志</small>
-                      </span>
-                      <span class="about-link-arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 17 17 7M7 7h10v10" /></svg></span>
-                    </button>
-                  </div>
-
-                  <div class="about-card">
-                    <h4>版本更新</h4>
-                    <div class="settings-row">
-                      <span class="vtag" :class="versionTagType">{{ versionTagText }}</span>
-                      <span v-if="appVersion" class="hint">当前版本 v{{ appVersion }}</span>
-                    </div>
-                    <p class="hint">{{ updater.updateStatusText.value }}</p>
-                    <div class="card-actions">
-                      <button class="ep-btn" :disabled="!updater.updaterSupported || updateBusy" @click="checkUpdate">检查更新</button>
-                    </div>
-                  </div>
-                </div>
-              </template>
-            </div>
-          </div>
-
-        </div>
-      </div>
-    </transition>
+    <!-- 设置弹窗：分类页定位见 settingsTab；打开时拉取格式关联状态在弹窗内部处理 -->
+    <SettingsDialog
+      :open="modal === 'settings'"
+      :initial-tab="settingsTab"
+      :app-version="appVersion"
+      :updater="updater"
+      @close="modal = null"
+      @tab="settingsTab = $event"
+    />
 
     <!-- 应用内更新对话框：启动时自动检查更新，下载/安装/重启一体 -->
     <UpdaterDialog />
@@ -1149,176 +888,4 @@ onUnmounted(() => {
 .ctx-item .k { color: var(--fg-muted); font-size: 11px; }
 .ctx-sep { height: 1px; background: var(--border); margin: 5px 8px; }
 
-/* 关于 / 设置 弹窗 */
-.fade-enter-active, .fade-leave-active { transition: opacity 0.15s ease; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
-.modal-backdrop {
-  position: fixed; inset: 0; z-index: 30;
-  display: flex; align-items: center; justify-content: center;
-  background: rgba(0, 0, 0, 0.45);
-}
-.modal {
-  width: 400px; max-width: 92vw;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 18px 20px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
-}
-/* 「关于」页：hero 区 + 相关链接卡片 + 版本更新（布局参考 wmdebugger 设置页） */
-.about-page { display: flex; flex-direction: column; gap: 12px; }
-.about-hero {
-  display: flex; align-items: center; gap: 16px;
-  padding: 16px 18px;
-  border: 1px solid var(--border); border-radius: 12px;
-  background: linear-gradient(135deg, var(--hover), transparent);
-}
-.about-logo {
-  width: 56px; height: 56px; flex: 0 0 56px;
-  border: 1px solid var(--border); border-radius: 12px;
-  background: var(--bar); padding: 6px;
-}
-.about-product { min-width: 0; }
-.about-title-row { display: flex; align-items: center; gap: 10px; }
-.about-title-row h2 { margin: 0; font-size: 20px; }
-.about-product p { margin: 6px 0 4px; color: var(--fg-muted); }
-.about-product > span { color: var(--fg-muted); font-size: 11px; opacity: 0.85; }
-/* 版本徽章：默认灰，按检查状态着色 */
-.vtag {
-  display: inline-block; padding: 1px 9px; border-radius: 999px;
-  background: var(--hover); border: 1px solid var(--border);
-  color: var(--fg-muted); font-size: 11px; line-height: 1.7;
-}
-.vtag.ok { color: #34d399; border-color: rgba(52, 211, 153, 0.4); }
-.vtag.warn { color: #f59e0b; border-color: rgba(245, 158, 11, 0.4); }
-.vtag.err { color: #ef4444; border-color: rgba(239, 68, 68, 0.4); }
-/* 相关链接：两列卡片，悬停描边高亮 */
-.about-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.about-link-card {
-  display: grid; grid-template-columns: 34px minmax(0, 1fr) auto;
-  align-items: center; gap: 10px; min-width: 0; min-height: 60px;
-  padding: 10px;
-  background: none; border: 1px solid var(--border); border-radius: 10px;
-  color: var(--fg); cursor: pointer; text-align: left;
-}
-.about-link-card:hover { border-color: var(--primary); background: var(--hover); }
-.about-link-icon {
-  display: grid; place-items: center; width: 34px; height: 34px;
-  border-radius: 9px; background: var(--hover); color: var(--primary);
-}
-.about-link-icon svg {
-  width: 18px; height: 18px;
-  fill: none; stroke: currentColor; stroke-width: 1.8;
-  stroke-linecap: round; stroke-linejoin: round;
-}
-/* GitHub 卡片排第一：图标实心填充 */
-.about-link-card:first-child .about-link-icon svg { fill: currentColor; stroke: none; }
-.about-link-copy { display: grid; gap: 2px; min-width: 0; }
-.about-link-copy strong { font-size: 13px; font-weight: 600; }
-.about-link-copy small {
-  overflow: hidden; color: var(--fg-muted); font-size: 11px;
-  text-overflow: ellipsis; white-space: nowrap;
-}
-.about-link-arrow { display: grid; place-items: center; color: var(--fg-muted); }
-.about-link-arrow svg {
-  width: 14px; height: 14px;
-  fill: none; stroke: currentColor; stroke-width: 1.8;
-  stroke-linecap: round; stroke-linejoin: round;
-}
-/* 版本更新卡片：徽章 + 状态说明 + 手动检查 */
-.about-card { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
-.about-card h4 { margin: 0 0 8px; font-size: 13px; }
-.about-card .settings-row { display: flex; align-items: center; gap: 10px; }
-.about-card .hint { margin: 6px 0 0; color: var(--fg-muted); font-size: 12px; }
-.about-card .card-actions { display: flex; justify-content: flex-end; margin-top: 10px; }
-.modal.settings {
-  width: 620px; max-width: 94vw;
-  height: 480px; max-height: 86vh; /* 高度固定，切换分类页时窗口不跳动 */
-  padding: 0; overflow: hidden;
-  display: flex; flex-direction: column;
-}
-.modal.settings header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 20px;
-  border-bottom: 1px solid var(--border);
-  font-weight: 600;
-}
-.modal.settings .close {
-  background: none; border: none; color: var(--fg-muted); cursor: pointer;
-  font-size: 16px; line-height: 1; padding: 2px 6px; border-radius: 6px;
-}
-.modal.settings .close:hover { color: var(--fg); background: var(--hover); }
-
-/* 设置弹窗主体：左分类菜单 + 右内容页 */
-.settings-body { display: flex; flex: 1; min-height: 0; }
-.settings-nav {
-  width: 128px; flex-shrink: 0;
-  display: flex; flex-direction: column; gap: 2px;
-  padding: 10px 8px;
-  border-right: 1px solid var(--border);
-}
-.settings-nav button {
-  background: none; border: none; cursor: pointer;
-  color: var(--fg-muted); font-size: 13px; text-align: left;
-  padding: 7px 12px; border-radius: 8px;
-}
-.settings-nav button:hover { background: var(--hover); color: var(--fg); }
-.settings-nav button.on { background: var(--hover); color: var(--primary); font-weight: 600; }
-.settings-page { flex: 1; min-width: 0; min-height: 0; padding: 14px 20px; overflow-y: auto; display: flex; flex-direction: column; }
-.settings-page h3 { margin: 0 0 4px; font-size: 14px; }
-.page-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
-.page-head h3 { margin: 0; }
-
-/* 设置行：左标签右分段选择器；放不下时整组换行（seg 靠右），绝不挤压按钮 */
-.row {
-  display: flex; align-items: center; justify-content: space-between; gap: 6px 12px;
-  flex-wrap: wrap;
-  padding: 9px 0;
-}
-.row .label { flex-shrink: 0; }
-.row .label small { display: block; color: var(--fg-muted); font-size: 11px; margin-top: 2px; }
-.seg { display: flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; flex-shrink: 0; margin-left: auto; }
-.seg button {
-  background: none; border: none; color: var(--fg-muted); cursor: pointer;
-  font-size: 12px; padding: 4px 10px; white-space: nowrap; flex-shrink: 0;
-}
-.seg button + button { border-left: 1px solid var(--border); }
-.seg button:hover { background: var(--hover); }
-.seg button.on { background: var(--primary); color: #fff; }
-/* 设置行里的文本输入（如逆地理 Key）：与 seg 同框风格 */
-.row input.text {
-  width: 240px;
-  padding: 5px 9px;
-  font: inherit;
-  color: var(--fg);
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  outline: none;
-}
-.row input.text:focus { border-color: var(--primary); }
-.row input.text::placeholder { color: var(--fg-muted); }
-
-/* 格式关联：工具行 + 格式列表（自动撑满弹窗剩余高度） */
-.assoc-actions { display: flex; align-items: center; gap: 8px; }
-.assoc-all { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--fg-muted); cursor: pointer; }
-.assoc-actions .mini {
-  background: none; border: 1px solid var(--border); color: var(--fg); cursor: pointer;
-  font-size: 12px; padding: 3px 10px; border-radius: 6px;
-}
-.assoc-actions .mini:hover:not(:disabled) { background: var(--hover); }
-.assoc-actions .mini:disabled { opacity: 0.4; cursor: default; }
-.assoc-list {
-  flex: 1 1 auto; min-height: 120px; overflow-y: auto;
-  border: 1px solid var(--border); border-radius: 8px;
-}
-.assoc-item {
-  display: flex; align-items: center; gap: 8px;
-  padding: 4px 10px; font-size: 12px; cursor: pointer;
-}
-.assoc-item:hover { background: var(--hover); }
-.assoc-item .ext { width: 52px; }
-.assoc-item .app { margin-left: auto; color: var(--fg-muted); }
-.assoc-item .app.ours { color: var(--primary); }
-.assoc-tip { margin: 6px 0 0; font-size: 11px; line-height: 1.6; color: var(--fg-muted); }
 </style>
