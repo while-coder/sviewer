@@ -6,23 +6,25 @@ import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { getVersion } from '@tauri-apps/api/app'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { convertFileSrc, invoke } from '@tauri-apps/api/core'
-import { open as openDialog, save as saveDialog } from '@tauri-apps/plugin-dialog'
+import { open as openDialog } from '@tauri-apps/plugin-dialog'
 import {
   listSiblings,
   readImageInfo,
   getLaunchFile,
-  saveImageAs,
   saveEditsTo,
-  encodeTo,
 } from './lib/bridge'
 import { resolveImage, preloadImage } from './lib/decode'
-import { extOf, extSupportsEdit, SAVE_FILTERS, EXT_FORMAT, inferFormat, OPEN_FILTERS } from './lib/formats'
+import { extOf, OPEN_FILTERS } from './lib/formats'
+import { saveAsViaDialog } from './lib/save'
+import { useImageView } from './composables/use-image-view'
+import { useSaveability } from './composables/use-saveability'
+import { useThemeSync } from './composables/use-theme-sync'
 import { humanSize } from './lib/util'
 import { exifLabel, pickCommonInfo, parseGpsCoord } from './lib/exif'
 import { mapLinks, reverseGeocode } from './lib/geo'
 import type { SaveFormat, ImageEdits, ImageInfo } from './lib/types'
 import { useAppMenu, type AppMenuAction } from './menu'
-import { settings, resolvedTheme } from './lib/settings'
+import { settings } from './lib/settings'
 import { UpdaterDialog, useTauriUpdater } from '@while-coder/tauri-updater-vue'
 
 // ── 状态 ───────────────────────────────────────────────
@@ -149,19 +151,11 @@ async function openEdit() {
     })
 }
 
-// 视图变换：缩放 + 平移
-const view = reactive({ scale: 1, x: 0, y: 0, fit: true })
-
 // ── 编辑：旋转 / 镜像（快捷操作；裁剪/标记/改尺寸在编辑窗口）──
 const edit = reactive({ rotation: 0, flip: false })
 // 输出偏好（另存为 JPEG 时的质量）
 const editOutput = reactive({ format: 'original' as SaveFormat, quality: 85 })
 
-// 旋转 90/270 后显示宽高互换
-const swapped = computed(() => edit.rotation % 180 !== 0)
-// 旋转后的显示尺寸
-const dispW = computed(() => (swapped.value ? natural.h : natural.w))
-const dispH = computed(() => (swapped.value ? natural.w : natural.h))
 const modified = computed(() => edit.rotation !== 0 || edit.flip)
 
 function rotate() {
@@ -192,19 +186,12 @@ function resetEditState() {
   editOutput.quality = 85
 }
 
-/** 能否「保存到原图」：有编辑、目标格式=原格式、且该扩展名可编码写回。 */
-const canSaveEdits = computed(() => {
-  if (!currentPath.value || !modified.value) return false
-  if (editOutput.format !== 'original') return false
-  return extSupportsEdit(currentPath.value)
-})
-const saveBtnTitle = computed(() => {
-  if (!currentPath.value) return '保存'
-  if (!modified.value) return '保存（先旋转/镜像，更多编辑请右键打开编辑窗口）'
-  if (editOutput.format !== 'original') return '保存（已选目标格式，请用「另存为…」）'
-  if (!extSupportsEdit(currentPath.value))
-    return `保存（.${extOf(currentPath.value)} 不支持直接修改，可用「另存为」转换格式）`
-  return '保存（写回原图）'
+/** 「保存到原图」的可用性与提示（与编辑窗口共用）。 */
+const { canSaveEdits, saveBtnTitle } = useSaveability({
+  path: currentPath,
+  modified: () => modified.value,
+  outputFormat: () => editOutput.format,
+  noEditHint: '保存（先旋转/镜像，更多编辑请右键打开编辑窗口）',
 })
 
 const savingEdits = ref(false)
@@ -340,9 +327,7 @@ const menuActions: Record<AppMenuAction, () => void> = {
 useAppMenu((a) => menuActions[a]())
 
 // ── 主题：实际主题应用到 <html data-theme>，CSS 变量随之切换 ──
-watchEffect(() => {
-  document.documentElement.dataset.theme = resolvedTheme.value
-})
+useThemeSync()
 
 // ── 另存为（对话框里选「保存类型」即可顺带转换格式）──────
 // 菜单加速键（Cmd/Ctrl+S）与 webview 快捷键在部分平台会同时命中：
@@ -354,35 +339,14 @@ async function saveAs() {
   if (!p) return
   saveAsBusy = true
   try {
-    const stem = (info.value?.fileName || p.split(/[\\/]/).pop() || 'image').replace(/\.[^.]+$/, '')
-    // 编辑面板里选了目标格式时预填对应扩展名
-    const defExt =
-      editOutput.format === 'original'
-        ? (extOf(p) || 'jpg')
-        : editOutput.format === 'jpeg'
-          ? 'jpg'
-          : editOutput.format
-    const dest = await saveDialog({
-      defaultPath: `${stem}.${defExt}`,
-      filters: SAVE_FILTERS,
+    await saveAsViaDialog({
+      path: p,
+      fileName: info.value?.fileName || '',
+      outputFormat: editOutput.format,
+      quality: editOutput.quality,
+      modified: modified.value,
+      edits: editsFromState(),
     })
-    if (!dest) return
-    try {
-      // 带编辑时「与源同扩展名」也必须重编码（否则 edits 会被 original 快路径丢掉）
-      let fmt = inferFormat(dest, p)
-      if (modified.value && fmt === 'original') {
-        fmt = EXT_FORMAT[dest.split('.').pop()?.toLowerCase() ?? ''] ?? 'original'
-      }
-      if (fmt === 'original') {
-        // 无编辑且同格式：原样复制，不重编码
-        await saveImageAs(p, dest, 'original')
-      } else {
-        await encodeTo(p, dest, fmt, editOutput.format === 'jpeg' ? editOutput.quality : null, editsFromState())
-      }
-    } catch (e) {
-      console.error('另存为失败', e)
-      window.alert(`另存为失败：${e}`)
-    }
   } finally {
     saveAsBusy = false
   }
@@ -506,89 +470,47 @@ function step(delta: number) {
   }
 }
 
-// ── 视图变换 ───────────────────────────────────────────
-// 统一用 transform 实现：view.scale 永远等于真实缩放比例，
-// 「适应窗口」就是 scale = min(stage/图片, 1)，百分比显示与实际始终一致。
+// ── 视图变换（与编辑窗口共用 useImageView）──────────────
 const stageEl = ref<HTMLElement | null>(null)
-const natural = reactive({ w: 0, h: 0 }) // 图片固有尺寸（@load 时记录）
+// 本次按下序列开始时是否处于「适应窗口」：拖拽会解除 fit，双击判断仍以按下前为准
+let fitAtDown = false
+const {
+  view,
+  natural,
+  drag,
+  fitView,
+  resetView,
+  setScale,
+  actualSize,
+  toggleFit,
+  onWheel,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+  applyNaturalSize,
+  imgStyle: baseImgStyle,
+} = useImageView({
+  stageEl,
+  rotation: () => edit.rotation,
+  flip: () => edit.flip,
+  defaultView: () => settings.defaultView,
+  onDragStart: () => {
+    fitAtDown = view.fit
+  },
+})
 
-function fitView() {
-  view.fit = true
-  const el = stageEl.value
-  if (!el || !natural.w || !natural.h) {
-    view.scale = 1
-    view.x = 0
-    view.y = 0
-    return
-  }
-  const r = el.getBoundingClientRect()
-  // 用旋转后的显示尺寸换算，90° 旋转的竖图才能正确适应窗口
-  const s = Math.min(r.width / dispW.value, r.height / dispH.value, 1)
-  view.scale = s
-  // 居中
-  view.x = (r.width - dispW.value * s) / 2
-  view.y = (r.height - dispH.value * s) / 2
-}
-
-function resetView() {
-  fitView()
-}
-
-function setScale(next: number, cx?: number, cy?: number) {
-  const clamped = Math.min(Math.max(next, 0.1), 20)
-  // 以（stage 内）锚点为中心缩放
-  if (cx !== undefined && cy !== undefined) {
-    const ratio = clamped / view.scale
-    view.x = cx - (cx - view.x) * ratio
-    view.y = cy - (cy - view.y) * ratio
-  }
-  view.scale = clamped
-  view.fit = false
-}
-
-function actualSize() {
-  const el = stageEl.value
-  if (!el) {
-    setScale(1)
-    return
-  }
-  const r = el.getBoundingClientRect()
-  setScale(1, r.width / 2, r.height / 2) // 以画布中心为锚点切 1:1
-}
-
-function onWheel(e: WheelEvent) {
-  e.preventDefault()
-  const el = stageEl.value
-  if (!el) return
-  const r = el.getBoundingClientRect()
-  const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12
-  setScale(view.scale * factor, e.clientX - r.left, e.clientY - r.top)
-}
-
-function toggleFit() {
-  if (view.fit) {
-    actualSize() // 适应 ↔ 1:1
-  } else {
-    fitView()
-  }
-}
-
-// 画布双击：适应 ↔ 1:1。按下时拖拽已解除 fit，所以以按下前的状态判断
+// 画布双击：适应 ↔ 1:1
 function onStageDblClick() {
   if (fitAtDown) actualSize()
   else fitView()
   fitAtDown = false
 }
 
-/** 图片固有尺寸就绪（<img> onload / HEIC 位图解码完）：按默认视图设置重算。 */
-function applyNaturalSize(w: number, h: number) {
-  natural.w = w
-  natural.h = h
-  if (view.fit) {
-    if (settings.defaultView === 'actual') actualSize()
-    else fitView()
-  }
-}
+// 主窗口光标绑定在图片上（编辑窗口绑在 stage 上随工具切换）
+const imgStyle = computed(() => {
+  if (!natural.w || !natural.h) return baseImgStyle.value
+  return { ...baseImgStyle.value, cursor: drag.on ? 'grabbing' : 'grab' }
+})
 
 function onImgLoad(e: Event) {
   const img = e.target as HTMLImageElement
@@ -614,56 +536,6 @@ async function toggleFullscreen() {
   fullscreen.value = !(await win.isFullscreen())
   await win.setFullscreen(fullscreen.value)
 }
-
-// 拖拽平移：Pointer Events + 指针捕获，光标移出窗口/划过信息面板也不会断
-const drag = reactive({ on: false, sx: 0, sy: 0, ox: 0, oy: 0 })
-// 本次按下序列开始时是否处于「适应窗口」：拖拽会解除 fit，双击判断仍以按下前为准
-let fitAtDown = false
-function onPointerDown(e: PointerEvent) {
-  if (!e.isPrimary || e.button !== 0 || !natural.w || !natural.h) return
-  fitAtDown = view.fit
-  // 适应模式下也能直接抓图拖动：保持当前缩放与位置，转入自由平移
-  view.fit = false
-  drag.on = true
-  drag.sx = e.clientX
-  drag.sy = e.clientY
-  drag.ox = view.x
-  drag.oy = view.y
-  // 捕获后续指针事件：移出画布/窗口仍持续收到 move/up
-  ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
-}
-function onPointerMove(e: PointerEvent) {
-  if (!drag.on) return
-  view.x = drag.ox + (e.clientX - drag.sx)
-  view.y = drag.oy + (e.clientY - drag.sy)
-}
-function onPointerUp(e: PointerEvent) {
-  if (!drag.on) return
-  drag.on = false
-  ;(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId)
-}
-
-const imgStyle = computed(() => {
-  // 固有尺寸未知（加载瞬间）先用 CSS contain 兜底，避免闪跳
-  if (!natural.w || !natural.h) {
-    return { maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' as const }
-  }
-  return {
-    // 绝对定位脱离 flex 居中，平移锚点才与坐标计算一致
-    position: 'absolute' as const,
-    top: '0',
-    left: '0',
-    // transform 从右往左应用：先绕图片中心旋转/镜像，再以显示区左上角
-    // 为锚点缩放、平移——因此 view.x/y 直接对应旋转后外接框（dispW×dispH）的位置
-    transform:
-      `translate(${view.x}px, ${view.y}px) scale(${view.scale})` +
-      ` translate(${dispW.value / 2}px, ${dispH.value / 2}px)` +
-      ` scaleX(${edit.flip ? -1 : 1}) rotate(${edit.rotation}deg)` +
-      ` translate(${-natural.w / 2}px, ${-natural.h / 2}px)`,
-    transformOrigin: '0 0',
-    cursor: drag.on ? 'grabbing' : 'grab',
-  }
-})
 
 // ── 键盘 ───────────────────────────────────────────────
 function onKey(e: KeyboardEvent) {
@@ -704,7 +576,6 @@ let unlistenDrop: (() => void) | null = null
 let unlistenOpen: (() => void) | null = null
 let unlistenFocus: (() => void) | null = null
 let unlistenEdited: (() => void) | null = null
-let resizeObserver: ResizeObserver | null = null
 
 onMounted(async () => {
   window.addEventListener('keydown', onKey)
@@ -720,12 +591,6 @@ onMounted(async () => {
 
   // 关于弹窗里展示版本号
   getVersion().then((v) => (appVersion.value = v)).catch(() => {})
-
-  // 窗口/画布尺寸变化时，适应模式下重新计算缩放
-  resizeObserver = new ResizeObserver(() => {
-    if (view.fit) fitView()
-  })
-  if (stageEl.value) resizeObserver.observe(stageEl.value)
 
   // 启动时的待打开文件（双击关联 / 命令行）
   try {
@@ -756,7 +621,6 @@ onMounted(async () => {
 onUnmounted(() => {
   window.removeEventListener('keydown', onKey)
   window.removeEventListener('resize', onWinResize)
-  resizeObserver?.disconnect()
   unlistenDrop?.()
   unlistenOpen?.()
   unlistenFocus?.()

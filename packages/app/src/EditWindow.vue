@@ -9,21 +9,21 @@
  * - 标记存「显示空间」坐标（EXIF 归一化 + 旋转/镜像后、裁剪前），与裁剪框
  *   同一坐标系，旋转/镜像时一起变换；预览用 SVG，落盘由 Rust 光栅化，所见即所得。
  */
-import { ref, reactive, computed, nextTick, watchEffect, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, watchEffect, onMounted, onUnmounted } from 'vue'
 import { listen, emit } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { convertFileSrc } from '@tauri-apps/api/core'
-import { save as saveDialog } from '@tauri-apps/plugin-dialog'
-import { readImageInfo, saveEditsTo, saveImageAs, encodeTo } from './lib/bridge'
+import { readImageInfo, saveEditsTo } from './lib/bridge'
 import { resolveImageSrc } from './lib/decode'
-import { extOf, extSupportsEdit, SAVE_FILTERS, EXT_FORMAT, inferFormat, SAVE_FORMAT_OPTIONS } from './lib/formats'
+import { SAVE_FORMAT_OPTIONS } from './lib/formats'
+import { saveAsViaDialog } from './lib/save'
 import type { SaveFormat, ImageEdits, CropRect, MarkShape } from './lib/types'
-import { settings, resolvedTheme, watchExternalSettings } from './lib/settings'
+import { settings } from './lib/settings'
+import { useImageView } from './composables/use-image-view'
+import { useSaveability } from './composables/use-saveability'
+import { useThemeSync } from './composables/use-theme-sync'
 
-watchEffect(() => {
-  document.documentElement.dataset.theme = resolvedTheme.value
-})
-watchExternalSettings()
+useThemeSync()
 
 // ── 图片状态 ───────────────────────────────────────────
 const path = ref<string | null>(null)
@@ -31,11 +31,6 @@ const info = ref<{ fileName: string } | null>(null)
 const imgSrc = ref<string>('')
 const loadError = ref<string>('')
 const loading = ref(false)
-
-// ── 视图变换：缩放 + 平移 ──────────────────────────────
-const view = reactive({ scale: 1, x: 0, y: 0, fit: true })
-const stageEl = ref<HTMLElement | null>(null)
-const natural = reactive({ w: 0, h: 0 })
 
 // ── 编辑状态 ───────────────────────────────────────────
 const edit = reactive({
@@ -57,9 +52,31 @@ const COLORS = ['#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#2d6cdf', '#ffffff'
 const markColor = ref('#ff3b30')
 const markWidth = ref(4)
 
-const swapped = computed(() => edit.rotation % 180 !== 0)
-const dispW = computed(() => (swapped.value ? natural.h : natural.w))
-const dispH = computed(() => (swapped.value ? natural.w : natural.h))
+// ── 视图变换（与主窗口共用 useImageView）───────────────
+const stageEl = ref<HTMLElement | null>(null)
+const {
+  view,
+  natural,
+  drag,
+  dispW,
+  dispH,
+  fitView,
+  setScale,
+  actualSize,
+  onWheel,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+  applyNaturalSize,
+  imgStyle,
+} = useImageView({
+  stageEl,
+  rotation: () => edit.rotation,
+  flip: () => edit.flip,
+  defaultView: () => 'fit',
+  canDrag: () => tool.value === 'pan',
+})
+
 const modified = computed(
   () => edit.rotation !== 0 || edit.flip || !!edit.crop || !!edit.resize || marks.value.length > 0,
 )
@@ -111,75 +128,7 @@ async function loadPath(p: string) {
 
 function onImgLoad(e: Event) {
   const img = e.target as HTMLImageElement
-  natural.w = img.naturalWidth
-  natural.h = img.naturalHeight
-  fitView()
-}
-
-// ── 视图：适应 / 1:1 / 缩放 ────────────────────────────
-function fitView() {
-  view.fit = true
-  const el = stageEl.value
-  if (!el || !natural.w || !natural.h) {
-    view.scale = 1
-    view.x = 0
-    view.y = 0
-    return
-  }
-  const r = el.getBoundingClientRect()
-  const s = Math.min(r.width / dispW.value, r.height / dispH.value, 1)
-  view.scale = s
-  view.x = (r.width - dispW.value * s) / 2
-  view.y = (r.height - dispH.value * s) / 2
-}
-
-function setScale(next: number, cx?: number, cy?: number) {
-  const clamped = Math.min(Math.max(next, 0.1), 20)
-  if (cx !== undefined && cy !== undefined) {
-    const ratio = clamped / view.scale
-    view.x = cx - (cx - view.x) * ratio
-    view.y = cy - (cy - view.y) * ratio
-  }
-  view.scale = clamped
-  view.fit = false
-}
-
-function actualSize() {
-  const el = stageEl.value
-  const r = el?.getBoundingClientRect()
-  setScale(1, r ? r.width / 2 : undefined, r ? r.height / 2 : undefined)
-}
-
-function onWheel(e: WheelEvent) {
-  e.preventDefault()
-  const el = stageEl.value
-  if (!el) return
-  const r = el.getBoundingClientRect()
-  const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12
-  setScale(view.scale * factor, e.clientX - r.left, e.clientY - r.top)
-}
-
-// ── 平移（仅 pan 工具）────────────────────────────────
-const drag = reactive({ on: false, sx: 0, sy: 0, ox: 0, oy: 0 })
-function onPointerDown(e: PointerEvent) {
-  if (tool.value !== 'pan' || !e.isPrimary || e.button !== 0 || !natural.w) return
-  view.fit = false
-  drag.on = true
-  drag.sx = e.clientX
-  drag.sy = e.clientY
-  drag.ox = view.x
-  drag.oy = view.y
-  ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
-}
-function onPointerMove(e: PointerEvent) {
-  if (!drag.on) return
-  view.x = drag.ox + (e.clientX - drag.sx)
-  view.y = drag.oy + (e.clientY - drag.sy)
-}
-function onPointerUp(e: PointerEvent) {
-  if (!drag.on) return
-  drag.on = false
-  ;(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId)
+  applyNaturalSize(img.naturalWidth, img.naturalHeight)
 }
 
 // ── 旋转 / 镜像（裁剪框与标记一起变换）─────────────────
@@ -467,19 +416,12 @@ function editsFromState(): ImageEdits {
   }
 }
 
-/** 能否「保存到原图」：有编辑、目标格式=原格式、且该扩展名可编码写回。 */
-const canSaveEdits = computed(() => {
-  if (!path.value || !modified.value) return false
-  if (editOutput.format !== 'original') return false
-  return extSupportsEdit(path.value)
-})
-const saveBtnTitle = computed(() => {
-  if (!path.value) return '保存'
-  if (!modified.value) return '保存（先旋转/镜像/裁剪/改尺寸/标记）'
-  if (editOutput.format !== 'original') return '保存（已选目标格式，请用「另存为…」）'
-  if (!extSupportsEdit(path.value))
-    return `保存（.${extOf(path.value)} 不支持直接修改，可用「另存为」转换格式）`
-  return '保存（写回原图）'
+/** 「保存到原图」的可用性与提示（与主窗口共用）。 */
+const { canSaveEdits, saveBtnTitle } = useSaveability({
+  path,
+  modified: () => modified.value,
+  outputFormat: () => editOutput.format,
+  noEditHint: '保存（先旋转/镜像/裁剪/改尺寸/标记）',
 })
 
 const savingEdits = ref(false)
@@ -522,33 +464,14 @@ function resetEdits() {
 async function saveAs() {
   const p = path.value
   if (!p || savingEdits.value) return
-  const stem = (info.value?.fileName || p.split(/[\\/]/).pop() || 'image').replace(/\.[^.]+$/, '')
-  const defExt =
-    editOutput.format === 'original'
-      ? (extOf(p) || 'jpg')
-      : editOutput.format === 'jpeg'
-        ? 'jpg'
-        : editOutput.format
-  const dest = await saveDialog({
-    defaultPath: `${stem}.${defExt}`,
-    filters: SAVE_FILTERS,
+  await saveAsViaDialog({
+    path: p,
+    fileName: info.value?.fileName || '',
+    outputFormat: editOutput.format,
+    quality: editOutput.quality,
+    modified: modified.value,
+    edits: editsFromState(),
   })
-  if (!dest) return
-  try {
-    let fmt = inferFormat(dest, p)
-    if (modified.value && fmt === 'original') {
-      fmt = EXT_FORMAT[dest.split('.').pop()?.toLowerCase() ?? ''] ?? 'original'
-    }
-    if (fmt === 'original') {
-      // 无编辑且同格式：原样复制，不重编码
-      await saveImageAs(p, dest, 'original')
-    } else {
-      await encodeTo(p, dest, fmt, editOutput.format === 'jpeg' ? editOutput.quality : null, editsFromState())
-    }
-  } catch (e) {
-    console.error('另存为失败', e)
-    window.alert(`另存为失败：${e}`)
-  }
 }
 
 // ── 侧栏：裁剪数值微调 / 改尺寸 ────────────────────────
@@ -596,24 +519,6 @@ const resizeChanged = computed(
 
 const FORMATS = SAVE_FORMAT_OPTIONS
 
-// ── 图片样式（与主窗口同一套变换）──────────────────────
-const imgStyle = computed(() => {
-  if (!natural.w || !natural.h) {
-    return { maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' as const }
-  }
-  return {
-    position: 'absolute' as const,
-    top: '0',
-    left: '0',
-    transform:
-      `translate(${view.x}px, ${view.y}px) scale(${view.scale})` +
-      ` translate(${dispW.value / 2}px, ${dispH.value / 2}px)` +
-      ` scaleX(${edit.flip ? -1 : 1}) rotate(${edit.rotation}deg)` +
-      ` translate(${-natural.w / 2}px, ${-natural.h / 2}px)`,
-    transformOrigin: '0 0',
-  }
-})
-
 const stageCursor = computed(() => {
   if (tool.value === 'crop') return 'crosshair'
   if (isMarkTool.value) return 'crosshair'
@@ -646,9 +551,6 @@ function onKey(e: KeyboardEvent) {
 
 // ── 生命周期 ───────────────────────────────────────────
 let unlistenFile: (() => void) | null = null
-const resizeObserver = new ResizeObserver(() => {
-  if (view.fit) fitView()
-})
 
 onMounted(async () => {
   window.addEventListener('keydown', onKey)
@@ -658,14 +560,11 @@ onMounted(async () => {
   unlistenFile = await listen<string>('edit-file', (e) => {
     if (e.payload) void loadPath(e.payload)
   })
-  await nextTick()
-  if (stageEl.value) resizeObserver.observe(stageEl.value)
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', onKey)
   unlistenFile?.()
-  resizeObserver.disconnect()
 })
 </script>
 
