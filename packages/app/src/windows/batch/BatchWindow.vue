@@ -10,12 +10,16 @@ import { getCurrentWindow } from '@tauri-apps/api/window'
 import { open as openDialog } from '@tauri-apps/plugin-dialog'
 import { join } from '@tauri-apps/api/path'
 import { convertFileSrc } from '@tauri-apps/api/core'
-import { encodeTo, uniqueDest, decodeThumb } from './lib/bridge'
-import { isWebNative, extOf, CONVERTIBLE_EXT, SAVE_FORMAT_OPTIONS } from './lib/formats'
-import { humanSize } from './lib/util'
-import type { SaveFormat } from './lib/types'
+import { encodeTo, uniqueDest, decodeThumb } from '../../lib/bridge'
+import { isWebNative, extOf, CONVERTIBLE_EXT, SAVE_FORMAT_OPTIONS } from '../../lib/formats'
+import { humanSize } from '../../lib/util'
+import type { SaveFormat } from '../../lib/types'
+import { useThemeSync } from '../../composables/use-theme-sync'
 
 const win = getCurrentWindow()
+
+// 与主窗口经 localStorage / storage 事件同步主题
+useThemeSync()
 
 interface BatchItem {
   id: number
