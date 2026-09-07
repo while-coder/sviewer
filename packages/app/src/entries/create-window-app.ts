@@ -4,7 +4,7 @@
  */
 import { createApp, type Component } from 'vue'
 import { setupLogger } from '../lib/logger'
-import '../common.css'
+import '../styles/common.css'
 
 export function createWindowApp(root: Component) {
   setupLogger()

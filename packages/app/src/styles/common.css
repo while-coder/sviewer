@@ -61,3 +61,19 @@ body {
 }
 .ep-btn:hover { background: var(--hover-strong); }
 .ep-btn:disabled { opacity: 0.35; cursor: default; }
+
+/* ── 画布区共享样式：主窗口与编辑窗口同构（差异规则留各组件）── */
+.stage {
+  flex: 1; position: relative; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  touch-action: none; /* 触屏拖图由 Pointer Events 接管，不让浏览器处理手势 */
+  background:
+    repeating-conic-gradient(var(--check-a) 0% 25%, var(--check-b) 0% 50%) 50% / 24px 24px;
+}
+/* 棋盘格关闭：纯色背景 */
+.stage.plain { background: var(--bg); }
+.pic { display: block; will-change: transform; }
+.empty { color: var(--fg-muted); text-align: center; }
+.empty.error pre { color: #cf6679; white-space: pre-wrap; max-width: 70vw; }
+/* 分隔竖条：宽高颜色统一，外边距由各工具栏自定 */
+.sep { width: 1px; height: 16px; background: var(--border); }

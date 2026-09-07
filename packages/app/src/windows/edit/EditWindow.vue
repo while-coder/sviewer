@@ -773,7 +773,7 @@ onUnmounted(() => {
 .ew .tool.active { color: var(--primary); background: var(--hover); }
 .ew .tool:disabled { opacity: 0.35; cursor: default; }
 .ew .tool:disabled:hover { background: none; }
-.ew .sep { width: 1px; height: 16px; background: var(--border); margin: 0 5px; }
+.ew .sep { margin: 0 5px; }
 
 /* 标记颜色色板与线宽 */
 .swatches { display: inline-flex; gap: 3px; margin: 0 4px; }
@@ -793,15 +793,7 @@ onUnmounted(() => {
 .w-select option { background: var(--bar); color: var(--fg); }
 
 .body { display: flex; flex: 1; min-height: 0; }
-.stage {
-  flex: 1; position: relative; overflow: hidden;
-  display: flex; align-items: center; justify-content: center;
-  touch-action: none;
-  background:
-    repeating-conic-gradient(var(--check-a) 0% 25%, var(--check-b) 0% 50%) 50% / 24px 24px;
-}
-.stage.plain { background: var(--bg); }
-.pic { display: block; will-change: transform; }
+/* .stage / .pic 基础样式在 common.css（与主窗口共用） */
 
 /* 裁剪层 / 标记层：与图片外接框对齐 */
 .crop-layer { overflow: hidden; cursor: crosshair; touch-action: none; }
@@ -854,8 +846,6 @@ onUnmounted(() => {
 .crop-h.sw { left: 0; top: 100%; transform: translate(-50%, -50%); cursor: nesw-resize; }
 .crop-h.w  { left: 0; top: 50%; transform: translate(-50%, -50%); cursor: ew-resize; }
 
-.empty { color: var(--fg-muted); text-align: center; }
-.empty.error pre { color: #cf6679; white-space: pre-wrap; max-width: 70vw; }
 .loading {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
   color: var(--fg-muted); font-size: 13px;

@@ -711,24 +711,12 @@ onUnmounted(() => {
   z-index: 2;
 }
 .dock-center { display: flex; align-items: center; gap: 2px; margin: 0 auto; }
-.dock .sep { width: 1px; height: 16px; background: var(--border); margin: 0 6px; }
+.dock .sep { margin: 0 6px; }
 
-.stage {
-  flex: 1; position: relative; overflow: hidden;
-  display: flex; align-items: center; justify-content: center;
-  touch-action: none; /* 触屏拖图由 Pointer Events 接管，不让浏览器处理手势 */
-  background:
-    repeating-conic-gradient(var(--check-a) 0% 25%, var(--check-b) 0% 50%) 50% / 24px 24px;
-}
-/* 棋盘格关闭：纯色背景 */
-.stage.plain { background: var(--bg); }
-.pic { display: block; will-change: transform; }
 /* 图片边缘轮廓：outline 不占布局，跟随 transform 缩放，透明图也能看清边界 */
 .pic.outline { outline: 1px solid var(--primary); }
 
-.empty { color: var(--fg-muted); text-align: center; }
 .empty .hint { font-size: 12px; opacity: 0.7; margin-top: 8px; }
-.empty.error pre { color: #cf6679; white-space: pre-wrap; max-width: 70vw; }
 
 /* ── 信息浮层 / 详情抽屉：统一的暗色玻璃面板，主题蓝点缀 ──
    面板恒为暗色（深浅主题一致，压住任何背景的图片），内部变量整体切到亮色；
