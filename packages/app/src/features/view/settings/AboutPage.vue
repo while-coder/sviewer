@@ -7,7 +7,7 @@
  */
 import { computed } from 'vue'
 import { useTauriUpdater } from '@while-coder/tauri-updater-vue'
-import { openExternal } from '../../lib/util'
+import { openExternal } from '../../../lib/util'
 
 const props = defineProps<{
   /** 当前应用版本（getVersion 取得，空串表示未取到） */

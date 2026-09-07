@@ -2,7 +2,7 @@
  * EXIF 展示层：标签中文翻译、GPS 坐标解析、常用信息挑选。
  * 只做纯数据处理，不涉及网络（逆地理编码见 geo.ts）。
  */
-import type { CommonEntry, ExifEntry } from './types'
+import type { CommonEntry, ExifEntry } from '../../../lib/types'
 
 /** EXIF 标签名 → 中文。未命中的保留原名。 */
 const EXIF_ZH: Record<string, string> = {

@@ -8,7 +8,7 @@
 import { computed, ref, watch } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { useTauriUpdater } from '@while-coder/tauri-updater-vue'
-import { settings } from '../../lib/settings'
+import { settings } from '../../../lib/settings'
 import AboutPage from './AboutPage.vue'
 
 export type SettingsTab = 'general' | 'view' | 'assoc' | 'about'

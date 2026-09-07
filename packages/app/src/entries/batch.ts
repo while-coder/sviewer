@@ -1,4 +1,4 @@
-import BatchWindow from '../windows/batch/BatchWindow.vue'
+import ConvertWindow from '../features/convert/ConvertWindow.vue'
 import { createWindowApp } from './create-window-app'
 
-createWindowApp(BatchWindow)
+createWindowApp(ConvertWindow)

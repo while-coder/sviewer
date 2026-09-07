@@ -3,8 +3,8 @@
  * 以及各地图 App 的打开链接生成。
  */
 import { invoke } from '@tauri-apps/api/core'
-import { settings } from './settings'
-import type { MapLink } from './types'
+import { settings } from '../../../lib/settings'
+import type { MapLink } from '../../../lib/types'
 
 export type { MapLink }
 

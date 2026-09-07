@@ -18,14 +18,14 @@ import { saveAsViaDialog } from '../../lib/save'
 import { useImageView } from '../../composables/use-image-view'
 import { useSaveability } from '../../composables/use-saveability'
 import { useThemeSync } from '../../composables/use-theme-sync'
-import { useAppMenu, type AppMenuAction } from '../../composables/use-app-menu'
+import { useAppMenu, type AppMenuAction } from './lib/use-app-menu'
 import { humanSize, openExternal } from '../../lib/util'
-import { exifLabel, pickCommonInfo, parseGpsCoord } from '../../lib/exif'
-import { mapLinks, reverseGeocode } from '../../lib/geo'
+import { exifLabel, pickCommonInfo, parseGpsCoord } from './lib/exif'
+import { mapLinks, reverseGeocode } from './lib/geo'
 import type { SaveFormat, ImageEdits, ImageInfo } from '../../lib/types'
 import { settings } from '../../lib/settings'
 import { UpdaterDialog, useTauriUpdater } from '@while-coder/tauri-updater-vue'
-import SettingsDialog from './SettingsDialog.vue'
+import SettingsDialog from './settings/SettingsDialog.vue'
 
 // ── 状态 ───────────────────────────────────────────────
 const currentPath = ref<string | null>(null)
