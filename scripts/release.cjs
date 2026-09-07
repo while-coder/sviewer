@@ -194,7 +194,13 @@ function main() {
       pkg.version = nextVersion;
       writeJson(pkgPath, pkg);
 
+      // Cargo.toml 的 crate 版本同步 bump（不进安装包元数据，但保持一致）
+      const cargoPath = path.join(root, 'packages', 'app', 'src-tauri', 'Cargo.toml');
+      const cargo = fs.readFileSync(cargoPath, 'utf8');
+      fs.writeFileSync(cargoPath, cargo.replace(/^version = ".*"$/m, `version = "${nextVersion}"`));
+
       run(`git add "${pkgRel}"`);
+      run(`git add "${path.join('packages', 'app', 'src-tauri', 'Cargo.toml')}"`);
       run(`git commit -m "chore: release v${nextVersion}"`);
     }
 

@@ -6,7 +6,7 @@
   "packageManager": "pnpm@10.33.0",
   "scripts": {
     "dev": "pnpm --filter @sviewer/app dev",
-    "dev:app": "pnpm --filter @sviewer/app dev",
+    "build:web": "pnpm --filter @sviewer/app exec vite build",
     "build:app": "pnpm --filter @sviewer/app windows:build",
     "build:app:mac": "pnpm --filter @sviewer/app macos:build",
     "sync:icons": "node scripts/sync-icons.js",

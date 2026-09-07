@@ -643,26 +643,6 @@ fn save_image_as(src: String, dest: String, format: String) -> Result<(), String
     encode_image(src, dest, format, None, None).map(|_| ())
 }
 
-/// 把旋转/镜像写回原图（原地覆盖）。save_edits 的简化包装（仅旋转/镜像）。
-#[tauri::command]
-fn apply_transform(path: String, rotation: u32, flip: bool) -> Result<(), String> {
-    if rotation == 0 && !flip {
-        return Ok(());
-    }
-    save_edits(
-        path,
-        ImageEdits {
-            rotation,
-            flip,
-            crop: None,
-            resize: None,
-            quality: None,
-            marks: Vec::new(),
-        },
-    )
-    .map(|_| ())
-}
-
 /// 逆地理编码：EXIF GPS 坐标（WGS-84）→ 一行简略地名。详情抽屉打开时由前端懒调用。
 /// provider：osm（免 Key）/ amap / baidu（各自需要用户在设置里填的 Key）。
 #[tauri::command]
@@ -806,7 +786,6 @@ pub fn run() {
             save_image_as,
             encode_image,
             save_edits,
-            apply_transform,
             unique_dest,
             assoc_status,
             assoc_set,
@@ -866,13 +845,20 @@ mod tests {
 
     /// 旋转写回原图：40×30 的临时 JPEG 转 90° 后重开应为 30×40。
     #[test]
-    fn apply_transform_rotates_in_place() {
+    fn save_edits_rotates_in_place() {
         let path = std::env::temp_dir().join("sviewer_transform_test.jpg");
         image::RgbImage::from_pixel(40, 30, image::Rgb([255, 0, 0]))
             .save_with_format(&path, image::ImageFormat::Jpeg)
             .expect("生成测试图失败");
-        super::apply_transform(path.to_string_lossy().into_owned(), 90, false)
-            .expect("apply_transform 失败");
+        super::save_edits(
+            path.to_string_lossy().into_owned(),
+            super::ImageEdits {
+                rotation: 90,
+                flip: false,
+                ..Default::default()
+            },
+        )
+        .expect("save_edits 失败");
         let (w, h) = image::image_dimensions(&path).expect("重开失败");
         assert_eq!((w, h), (30, 40), "旋转 90° 后宽高应互换");
         std::fs::remove_file(&path).ok();

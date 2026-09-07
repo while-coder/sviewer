@@ -270,15 +270,6 @@ export function saveImageAs(src: string, dest: string, format: SaveFormat): Prom
   return invoke('save_image_as', { src, dest, format })
 }
 
-/**
- * 把旋转/镜像写回原图（原地覆盖）。
- * rotation：0/90/180/270（顺时针）；flip：水平镜像。
- * 仅支持可编码格式（heic/svg/gif 由调用方禁用）。
- */
-export function applyTransform(path: string, rotation: number, flip: boolean): Promise<void> {
-  return invoke('apply_transform', { path, rotation, flip })
-}
-
 // ── 编辑 / 转换 ─────────────────────────────────────────
 
 /** 裁剪矩形：显示空间（EXIF 归一化 + 旋转/镜像之后）的像素坐标，左上原点。 */

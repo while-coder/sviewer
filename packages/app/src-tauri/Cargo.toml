@@ -1,6 +1,6 @@
 [package]
 name = "sviewer"
-version = "0.0.1"
+version = "0.0.3"
 authors = ["while"]
 edition = "2021"
 
