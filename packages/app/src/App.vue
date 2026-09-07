@@ -8,29 +8,21 @@ import { openUrl } from '@tauri-apps/plugin-opener'
 import { convertFileSrc, invoke } from '@tauri-apps/api/core'
 import { open as openDialog, save as saveDialog } from '@tauri-apps/plugin-dialog'
 import {
-  resolveImage,
   listSiblings,
   readImageInfo,
   getLaunchFile,
-  preloadImage,
   saveImageAs,
   saveEditsTo,
   encodeTo,
-  extOf,
-  extSupportsEdit,
-  type SaveFormat,
-  type ImageEdits,
-  humanSize,
-  exifLabel,
-  pickCommonInfo,
-  parseGpsCoord,
-  mapLinks,
-  reverseGeocode,
-  type ImageInfo,
-} from './viewer'
+} from './lib/bridge'
+import { resolveImage, preloadImage } from './lib/decode'
+import { extOf, extSupportsEdit, SAVE_FILTERS, EXT_FORMAT, inferFormat } from './lib/formats'
+import { humanSize } from './lib/util'
+import { exifLabel, pickCommonInfo, parseGpsCoord } from './lib/exif'
+import { mapLinks, reverseGeocode } from './lib/geo'
+import type { SaveFormat, ImageEdits, ImageInfo } from './lib/types'
 import { useAppMenu, type AppMenuAction } from './menu'
-import { SAVE_FILTERS, EXT_FORMAT, inferFormat } from './edit-shared'
-import { settings, resolvedTheme } from './settings'
+import { settings, resolvedTheme } from './lib/settings'
 import { UpdaterDialog, useTauriUpdater } from '@while-coder/tauri-updater-vue'
 
 // ── 状态 ───────────────────────────────────────────────

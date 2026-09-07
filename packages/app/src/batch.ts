@@ -1,6 +1,6 @@
 import { createApp } from 'vue'
 import BatchWindow from './BatchWindow.vue'
-import { setupLogger } from './logger'
+import { setupLogger } from './lib/logger'
 import './common.css'
 
 setupLogger()

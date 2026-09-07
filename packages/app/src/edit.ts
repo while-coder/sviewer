@@ -1,6 +1,6 @@
 import { createApp } from 'vue'
 import EditWindow from './EditWindow.vue'
-import { setupLogger } from './logger'
+import { setupLogger } from './lib/logger'
 import './common.css'
 
 setupLogger()

@@ -4,7 +4,7 @@
  * 应用主题，与主窗口经 localStorage / storage 事件同步设置。
  */
 import { watchEffect } from 'vue'
-import { resolvedTheme, watchExternalSettings } from './settings'
+import { resolvedTheme, watchExternalSettings } from './lib/settings'
 import BatchConvertDialog from './BatchConvertDialog.vue'
 
 watchEffect(() => {

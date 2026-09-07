@@ -10,15 +10,10 @@ import { getCurrentWindow } from '@tauri-apps/api/window'
 import { open as openDialog } from '@tauri-apps/plugin-dialog'
 import { join } from '@tauri-apps/api/path'
 import { convertFileSrc } from '@tauri-apps/api/core'
-import {
-  encodeTo,
-  uniqueDest,
-  decodeThumb,
-  isWebNative,
-  extOf,
-  humanSize,
-  type SaveFormat,
-} from './viewer'
+import { encodeTo, uniqueDest, decodeThumb } from './lib/bridge'
+import { isWebNative, extOf } from './lib/formats'
+import { humanSize } from './lib/util'
+import type { SaveFormat } from './lib/types'
 
 const win = getCurrentWindow()
 

@@ -14,21 +14,11 @@ import { listen, emit } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { convertFileSrc } from '@tauri-apps/api/core'
 import { save as saveDialog } from '@tauri-apps/plugin-dialog'
-import {
-  resolveImageSrc,
-  readImageInfo,
-  saveEditsTo,
-  saveImageAs,
-  encodeTo,
-  extOf,
-  extSupportsEdit,
-  type SaveFormat,
-  type ImageEdits,
-  type CropRect,
-  type MarkShape,
-} from './viewer'
-import { SAVE_FILTERS, EXT_FORMAT, inferFormat } from './edit-shared'
-import { settings, resolvedTheme, watchExternalSettings } from './settings'
+import { readImageInfo, saveEditsTo, saveImageAs, encodeTo } from './lib/bridge'
+import { resolveImageSrc } from './lib/decode'
+import { extOf, extSupportsEdit, SAVE_FILTERS, EXT_FORMAT, inferFormat } from './lib/formats'
+import type { SaveFormat, ImageEdits, CropRect, MarkShape } from './lib/types'
+import { settings, resolvedTheme, watchExternalSettings } from './lib/settings'
 
 watchEffect(() => {
   document.documentElement.dataset.theme = resolvedTheme.value
