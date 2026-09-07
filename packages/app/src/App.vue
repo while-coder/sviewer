@@ -16,7 +16,7 @@ import {
   encodeTo,
 } from './lib/bridge'
 import { resolveImage, preloadImage } from './lib/decode'
-import { extOf, extSupportsEdit, SAVE_FILTERS, EXT_FORMAT, inferFormat } from './lib/formats'
+import { extOf, extSupportsEdit, SAVE_FILTERS, EXT_FORMAT, inferFormat, OPEN_FILTERS } from './lib/formats'
 import { humanSize } from './lib/util'
 import { exifLabel, pickCommonInfo, parseGpsCoord } from './lib/exif'
 import { mapLinks, reverseGeocode } from './lib/geo'
@@ -493,16 +493,7 @@ async function openPath(path: string, loadSiblings = true) {
 async function pickFile() {
   const selected = await openDialog({
     multiple: false,
-    filters: [
-      {
-        name: '图片',
-        extensions: [
-          'jpg', 'jpeg', 'jpe', 'jfif', 'png', 'gif', 'webp', 'bmp', 'ico', 'svg', 'avif',
-          'tiff', 'tif', 'heic', 'heif', 'hif', 'tga', 'pbm', 'pgm', 'ppm', 'pnm',
-          'dds', 'hdr', 'exr', 'qoi',
-        ],
-      },
-    ],
+    filters: OPEN_FILTERS,
   })
   if (typeof selected === 'string') await openPath(selected)
 }

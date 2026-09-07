@@ -25,7 +25,9 @@
       "csp": null,
       "assetProtocol": {
         "enable": true,
-        "scope": ["**"]
+        "scope": [
+          "**"
+        ]
       }
     }
   },
@@ -36,7 +38,13 @@
       "bundleName": "素阅"
     },
     "createUpdaterArtifacts": true,
-    "targets": ["nsis", "app", "dmg", "deb", "appimage"],
+    "targets": [
+      "nsis",
+      "app",
+      "dmg",
+      "deb",
+      "appimage"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -46,103 +54,166 @@
     ],
     "fileAssociations": [
       {
-        "ext": ["jpg", "jpeg", "jpe", "jfif"],
+        "ext": [
+          "jpg",
+          "jpeg",
+          "jpe",
+          "jfif"
+        ],
         "name": "JPEG 图像",
         "description": "图片文件",
         "role": "Viewer",
-        "contentTypes": ["public.jpeg"],
+        "contentTypes": [
+          "public.jpeg"
+        ],
         "mimeType": "image/jpeg"
       },
       {
-        "ext": ["png"],
+        "ext": [
+          "png"
+        ],
         "name": "PNG 图像",
         "description": "图片文件",
         "role": "Viewer",
-        "contentTypes": ["public.png"],
+        "contentTypes": [
+          "public.png"
+        ],
         "mimeType": "image/png"
       },
       {
-        "ext": ["gif"],
+        "ext": [
+          "gif"
+        ],
         "name": "GIF 图像",
         "description": "图片文件",
         "role": "Viewer",
-        "contentTypes": ["com.compuserve.gif"],
+        "contentTypes": [
+          "com.compuserve.gif"
+        ],
         "mimeType": "image/gif"
       },
       {
-        "ext": ["webp"],
+        "ext": [
+          "webp"
+        ],
         "name": "WebP 图像",
         "description": "图片文件",
         "role": "Viewer",
-        "contentTypes": ["org.webmproject.webp"],
+        "contentTypes": [
+          "org.webmproject.webp"
+        ],
         "mimeType": "image/webp"
       },
       {
-        "ext": ["bmp"],
+        "ext": [
+          "bmp"
+        ],
         "name": "BMP 图像",
         "description": "图片文件",
         "role": "Viewer",
-        "contentTypes": ["com.microsoft.bmp"],
+        "contentTypes": [
+          "com.microsoft.bmp"
+        ],
         "mimeType": "image/bmp"
       },
       {
-        "ext": ["ico"],
+        "ext": [
+          "ico"
+        ],
         "name": "ICO 图像",
         "description": "图片文件",
         "role": "Viewer",
-        "contentTypes": ["com.microsoft.ico"],
+        "contentTypes": [
+          "com.microsoft.ico"
+        ],
         "mimeType": "image/vnd.microsoft.icon"
       },
       {
-        "ext": ["svg"],
+        "ext": [
+          "svg"
+        ],
         "name": "SVG 图像",
         "description": "图片文件",
         "role": "Viewer",
-        "contentTypes": ["public.svg-image"],
+        "contentTypes": [
+          "public.svg-image"
+        ],
         "mimeType": "image/svg+xml"
       },
       {
-        "ext": ["tiff", "tif"],
+        "ext": [
+          "tiff",
+          "tif"
+        ],
         "name": "TIFF 图像",
         "description": "图片文件",
         "role": "Viewer",
-        "contentTypes": ["public.tiff"],
+        "contentTypes": [
+          "public.tiff"
+        ],
         "mimeType": "image/tiff"
       },
       {
-        "ext": ["avif"],
+        "ext": [
+          "avif"
+        ],
         "name": "AVIF 图像",
         "description": "图片文件",
         "role": "Viewer",
-        "contentTypes": ["public.avif"],
+        "contentTypes": [
+          "public.avif"
+        ],
         "mimeType": "image/avif"
       },
       {
-        "ext": ["heic", "heif", "hif"],
+        "ext": [
+          "heic",
+          "heif",
+          "hif"
+        ],
         "name": "HEIF 图像",
         "description": "图片文件",
         "role": "Viewer",
-        "contentTypes": ["public.heic", "public.heif"],
+        "contentTypes": [
+          "public.heic",
+          "public.heif"
+        ],
         "mimeType": "image/heic;image/heif"
       },
       {
-        "ext": ["tga"],
+        "ext": [
+          "tga"
+        ],
         "name": "TGA 图像",
         "description": "图片文件",
         "role": "Viewer",
-        "contentTypes": ["com.truevision.tga-image"],
+        "contentTypes": [
+          "com.truevision.tga-image"
+        ],
         "mimeType": "image/x-tga"
       },
       {
-        "ext": ["exr"],
+        "ext": [
+          "exr"
+        ],
         "name": "OpenEXR 图像",
         "description": "图片文件",
         "role": "Viewer",
-        "contentTypes": ["com.ilm.openexr-image"],
+        "contentTypes": [
+          "com.ilm.openexr-image"
+        ],
         "mimeType": "image/x-exr"
       },
       {
-        "ext": ["pbm", "pgm", "ppm", "pnm", "dds", "hdr", "qoi"],
+        "ext": [
+          "pbm",
+          "pgm",
+          "ppm",
+          "pnm",
+          "dds",
+          "hdr",
+          "qoi"
+        ],
         "name": "Image",
         "description": "图片文件",
         "role": "Viewer",
@@ -157,7 +228,10 @@
     "windows": {
       "nsis": {
         "installMode": "both",
-        "languages": ["SimpChinese", "English"],
+        "languages": [
+          "SimpChinese",
+          "English"
+        ],
         "displayLanguageSelector": true
       }
     }

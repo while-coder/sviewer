@@ -1,0 +1,116 @@
+{
+  "$comment": "图片格式单一事实来源。前端由 lib/formats.ts 消费；Rust 侧与 tauri.conf.json 的 fileAssociations 由 scripts/gen-formats.cjs 生成（pnpm gen:formats）。修改清单后必须重新运行生成脚本并提交生成物。",
+  "supported": [
+    "jpg", "jpeg", "jpe", "jfif", "png", "gif", "webp", "bmp", "ico", "svg", "tiff", "tif",
+    "avif", "heic", "heif", "hif", "tga", "pbm", "pgm", "ppm", "pnm", "dds", "hdr", "exr", "qoi"
+  ],
+  "webNative": ["jpg", "jpeg", "jpe", "jfif", "png", "gif", "webp", "bmp", "ico", "svg", "avif"],
+  "heif": ["heic", "heif", "hif"],
+  "editable": ["jpg", "jpeg", "jpe", "jfif", "png", "webp", "bmp", "tiff", "tif", "avif", "tga", "qoi", "exr"],
+  "convertible": ["jpg", "jpeg", "png", "gif", "webp", "bmp", "ico", "tiff", "tif", "avif", "heic", "heif"],
+  "fileAssociations": [
+    {
+      "ext": ["jpg", "jpeg", "jpe", "jfif"],
+      "name": "JPEG 图像",
+      "description": "图片文件",
+      "role": "Viewer",
+      "contentTypes": ["public.jpeg"],
+      "mimeType": "image/jpeg"
+    },
+    {
+      "ext": ["png"],
+      "name": "PNG 图像",
+      "description": "图片文件",
+      "role": "Viewer",
+      "contentTypes": ["public.png"],
+      "mimeType": "image/png"
+    },
+    {
+      "ext": ["gif"],
+      "name": "GIF 图像",
+      "description": "图片文件",
+      "role": "Viewer",
+      "contentTypes": ["com.compuserve.gif"],
+      "mimeType": "image/gif"
+    },
+    {
+      "ext": ["webp"],
+      "name": "WebP 图像",
+      "description": "图片文件",
+      "role": "Viewer",
+      "contentTypes": ["org.webmproject.webp"],
+      "mimeType": "image/webp"
+    },
+    {
+      "ext": ["bmp"],
+      "name": "BMP 图像",
+      "description": "图片文件",
+      "role": "Viewer",
+      "contentTypes": ["com.microsoft.bmp"],
+      "mimeType": "image/bmp"
+    },
+    {
+      "ext": ["ico"],
+      "name": "ICO 图像",
+      "description": "图片文件",
+      "role": "Viewer",
+      "contentTypes": ["com.microsoft.ico"],
+      "mimeType": "image/vnd.microsoft.icon"
+    },
+    {
+      "ext": ["svg"],
+      "name": "SVG 图像",
+      "description": "图片文件",
+      "role": "Viewer",
+      "contentTypes": ["public.svg-image"],
+      "mimeType": "image/svg+xml"
+    },
+    {
+      "ext": ["tiff", "tif"],
+      "name": "TIFF 图像",
+      "description": "图片文件",
+      "role": "Viewer",
+      "contentTypes": ["public.tiff"],
+      "mimeType": "image/tiff"
+    },
+    {
+      "ext": ["avif"],
+      "name": "AVIF 图像",
+      "description": "图片文件",
+      "role": "Viewer",
+      "contentTypes": ["public.avif"],
+      "mimeType": "image/avif"
+    },
+    {
+      "ext": ["heic", "heif", "hif"],
+      "name": "HEIF 图像",
+      "description": "图片文件",
+      "role": "Viewer",
+      "contentTypes": ["public.heic", "public.heif"],
+      "mimeType": "image/heic;image/heif"
+    },
+    {
+      "ext": ["tga"],
+      "name": "TGA 图像",
+      "description": "图片文件",
+      "role": "Viewer",
+      "contentTypes": ["com.truevision.tga-image"],
+      "mimeType": "image/x-tga"
+    },
+    {
+      "ext": ["exr"],
+      "name": "OpenEXR 图像",
+      "description": "图片文件",
+      "role": "Viewer",
+      "contentTypes": ["com.ilm.openexr-image"],
+      "mimeType": "image/x-exr"
+    },
+    {
+      "ext": ["pbm", "pgm", "ppm", "pnm", "dds", "hdr", "qoi"],
+      "name": "Image",
+      "description": "图片文件",
+      "role": "Viewer",
+      "mimeType": "image/x-portable-anymap;image/vnd-ms.dds;image/vnd.radiance"
+    }
+  ]
+}

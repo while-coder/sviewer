@@ -16,7 +16,7 @@ import { convertFileSrc } from '@tauri-apps/api/core'
 import { save as saveDialog } from '@tauri-apps/plugin-dialog'
 import { readImageInfo, saveEditsTo, saveImageAs, encodeTo } from './lib/bridge'
 import { resolveImageSrc } from './lib/decode'
-import { extOf, extSupportsEdit, SAVE_FILTERS, EXT_FORMAT, inferFormat } from './lib/formats'
+import { extOf, extSupportsEdit, SAVE_FILTERS, EXT_FORMAT, inferFormat, SAVE_FORMAT_OPTIONS } from './lib/formats'
 import type { SaveFormat, ImageEdits, CropRect, MarkShape } from './lib/types'
 import { settings, resolvedTheme, watchExternalSettings } from './lib/settings'
 
@@ -594,21 +594,7 @@ const resizeChanged = computed(
   () => resizeW.value !== cropBase.value.w || resizeH.value !== cropBase.value.h,
 )
 
-const FORMATS: { value: SaveFormat; label: string }[] = [
-  { value: 'original', label: '原格式' },
-  { value: 'jpeg', label: 'JPEG' },
-  { value: 'png', label: 'PNG' },
-  { value: 'webp', label: 'WebP（无损）' },
-  { value: 'tiff', label: 'TIFF' },
-  { value: 'bmp', label: 'BMP' },
-  { value: 'gif', label: 'GIF（静态首帧）' },
-  { value: 'ico', label: 'ICO（缩至 256）' },
-  { value: 'tga', label: 'TGA' },
-  { value: 'ppm', label: 'PPM' },
-  { value: 'qoi', label: 'QOI' },
-  { value: 'avif', label: 'AVIF（较慢）' },
-  { value: 'ff', label: 'Farbfeld' },
-]
+const FORMATS = SAVE_FORMAT_OPTIONS
 
 // ── 图片样式（与主窗口同一套变换）──────────────────────
 const imgStyle = computed(() => {

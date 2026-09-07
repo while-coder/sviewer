@@ -13,17 +13,9 @@ use serde::Serialize;
 use tauri::{Emitter, Manager, State};
 
 mod assoc;
+mod formats_gen;
 mod geo;
 mod native_heic;
-
-/// 受支持的图片扩展名（小写，不含点）。用于目录列举与启动参数识别。
-/// - jpe/jfif 是 JPEG 别名、hif 是 HEIF 容器，分别沿用 JPEG/HEIC 的解码通道；
-/// - svg 交给 WebView 渲染；
-/// - tga/pbm/pgm/ppm/pnm/dds/hdr/exr/qoi 由 image crate 解码（默认 feature 已带）。
-const SUPPORTED_EXT: &[&str] = &[
-    "jpg", "jpeg", "jpe", "jfif", "png", "gif", "webp", "bmp", "ico", "svg", "tiff", "tif",
-    "avif", "heic", "heif", "hif", "tga", "pbm", "pgm", "ppm", "pnm", "dds", "hdr", "exr", "qoi",
-];
 
 /// 启动时待打开的文件路径，前端 onMounted 取走一次后清空。
 #[derive(Default)]
@@ -96,7 +88,7 @@ struct ImageInfo {
 fn is_supported(path: &Path) -> bool {
     path.extension()
         .and_then(|e| e.to_str())
-        .map(|e| SUPPORTED_EXT.contains(&e.to_lowercase().as_str()))
+        .map(|e| formats_gen::SUPPORTED_EXT.contains(&e.to_lowercase().as_str()))
         .unwrap_or(false)
 }
 
@@ -584,17 +576,8 @@ fn save_edits(path: String, edits: ImageEdits) -> Result<SaveOutcome, String> {
         .unwrap_or("")
         .to_lowercase();
     // HEIC 无编码器、SVG 是矢量、GIF 动图会丢帧：前端禁用按钮，这里兜底拒绝
-    let format = match ext.as_str() {
-        "jpg" | "jpeg" | "jpe" | "jfif" => "jpeg",
-        "png" => "png",
-        "webp" => "webp",
-        "bmp" => "bmp",
-        "tiff" | "tif" => "tiff",
-        "avif" => "avif",
-        "tga" => "tga",
-        "qoi" => "qoi",
-        "exr" => "exr",
-        _ => return Err(format!(".{ext} 格式不支持直接修改原图")),
+    let Some(format) = formats_gen::editable_ext_format(&ext) else {
+        return Err(format!(".{ext} 格式不支持直接修改原图"));
     };
     let img = decode_any(&path)?;
     let img = process_image(img, &p, &edits)?;

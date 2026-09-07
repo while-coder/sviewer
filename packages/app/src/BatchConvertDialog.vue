@@ -11,7 +11,7 @@ import { open as openDialog } from '@tauri-apps/plugin-dialog'
 import { join } from '@tauri-apps/api/path'
 import { convertFileSrc } from '@tauri-apps/api/core'
 import { encodeTo, uniqueDest, decodeThumb } from './lib/bridge'
-import { isWebNative, extOf } from './lib/formats'
+import { isWebNative, extOf, CONVERTIBLE_EXT, SAVE_FORMAT_OPTIONS } from './lib/formats'
 import { humanSize } from './lib/util'
 import type { SaveFormat } from './lib/types'
 
@@ -29,20 +29,7 @@ interface BatchItem {
 let nextId = 1
 const items = ref<BatchItem[]>([])
 
-const FORMATS: { value: Exclude<SaveFormat, 'original'>; label: string }[] = [
-  { value: 'jpeg', label: 'JPEG' },
-  { value: 'png', label: 'PNG' },
-  { value: 'webp', label: 'WebP（无损）' },
-  { value: 'tiff', label: 'TIFF' },
-  { value: 'bmp', label: 'BMP' },
-  { value: 'gif', label: 'GIF（静态首帧）' },
-  { value: 'ico', label: 'ICO（缩至 256）' },
-  { value: 'tga', label: 'TGA' },
-  { value: 'ppm', label: 'PPM' },
-  { value: 'qoi', label: 'QOI' },
-  { value: 'avif', label: 'AVIF（较慢）' },
-  { value: 'ff', label: 'Farbfeld' },
-]
+const FORMATS = SAVE_FORMAT_OPTIONS.filter((f) => f.value !== 'original')
 const format = ref<Exclude<SaveFormat, 'original'>>('jpeg')
 const quality = ref(85)
 
@@ -50,10 +37,8 @@ const running = ref(false)
 const cancelFlag = ref(false)
 const doneCount = computed(() => items.value.filter((i) => i.status === 'done').length)
 
-/** Rust 支持的扩展名（与 lib.rs SUPPORTED_EXT 一致，svg 矢量不在转换范围）。 */
-const SUPPORTED = new Set([
-  'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'ico', 'tiff', 'tif', 'avif', 'heic', 'heif',
-])
+/** 批量转换可作转换源的扩展名（svg 矢量不参与）。 */
+const SUPPORTED = CONVERTIBLE_EXT
 
 function loadThumb(it: BatchItem) {
   if (isWebNative(it.path)) {

@@ -9,6 +9,7 @@
     "build:web": "pnpm --filter @sviewer/app exec vite build",
     "build:app": "pnpm --filter @sviewer/app windows:build",
     "build:app:mac": "pnpm --filter @sviewer/app macos:build",
+    "gen:formats": "node scripts/gen-formats.cjs",
     "sync:icons": "node scripts/sync-icons.js",
     "release": "node scripts/release.cjs",
     "tauri": "pnpm --filter @sviewer/app tauri"

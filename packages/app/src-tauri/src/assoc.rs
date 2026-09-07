@@ -10,12 +10,10 @@
 //! （哈希保护的「默认应用」记录），删除之让 Classes 默认值生效（HKCU 内无需管理员）。
 //! 每次启动都重写一遍候选注册，exe 挪位置（dev ↔ 安装版）后路径自动跟上。
 
-/// 受支持的扩展名（带点、小写），与 lib.rs 的 SUPPORTED_EXT 保持一致。
-const EXTS: &[&str] = &[
-    ".jpg", ".jpeg", ".jpe", ".jfif", ".png", ".gif", ".webp", ".bmp", ".ico", ".svg", ".tiff",
-    ".tif", ".avif", ".heic", ".heif", ".hif", ".tga", ".pbm", ".pgm", ".ppm", ".pnm", ".dds",
-    ".hdr", ".exr", ".qoi",
-];
+/// 受支持的扩展名（带点、小写），从 formats_gen::SUPPORTED_EXT 派生（单一事实来源 formats.json）。
+fn exts() -> impl Iterator<Item = String> {
+    crate::formats_gen::SUPPORTED_EXT.iter().map(|e| format!(".{e}"))
+}
 
 /// ProgID：给系统看的关联标识名。
 const PROG_ID: &str = "SViewer.Image";
@@ -40,7 +38,7 @@ mod imp {
     use winreg::enums::{HKEY_CLASSES_ROOT, HKEY_CURRENT_USER};
     use winreg::RegKey;
 
-    use super::{AssocStatus, EXTS, PROG_ID};
+    use super::{exts, AssocStatus, PROG_ID};
 
     fn reg_err(e: IoError) -> String {
         format!("写注册表失败：{e}")
@@ -83,7 +81,7 @@ mod imp {
             .map_err(reg_err)?;
         appopen.set_value("", &cmd).map_err(reg_err)?;
         let (types, _) = app.create_subkey("SupportedTypes").map_err(reg_err)?;
-        for ext in EXTS {
+        for ext in exts() {
             types.set_value(ext, &"").map_err(reg_err)?;
         }
 
@@ -95,7 +93,7 @@ mod imp {
         cap.set_value("ApplicationDescription", &"轻量级本地图片查看器")
             .map_err(reg_err)?;
         let (fa, _) = cap.create_subkey("FileAssociations").map_err(reg_err)?;
-        for ext in EXTS {
+        for ext in exts() {
             fa.set_value(ext, &PROG_ID).map_err(reg_err)?;
         }
         let (ra, _) = hkcu
@@ -202,8 +200,7 @@ mod imp {
 
     /// 查询各扩展名的当前默认应用。
     pub fn status() -> Vec<AssocStatus> {
-        EXTS
-            .iter()
+        exts()
             .map(|ext| {
                 let hkcu = RegKey::predef(HKEY_CURRENT_USER);
                 let hkcr = RegKey::predef(HKEY_CLASSES_ROOT);
@@ -216,7 +213,7 @@ mod imp {
                     .and_then(|k| k.get_value::<String, _>("ProgId"))
                     .ok();
                 let classes_default = hkcr
-                    .open_subkey(ext)
+                    .open_subkey(&ext)
                     .ok()
                     .and_then(|k| k.get_value::<String, _>("").ok())
                     .filter(|p| !p.is_empty());
@@ -225,7 +222,7 @@ mod imp {
                     None => match classes_default.filter(|p| is_valid_progid(p)) {
                         Some(p) => Some(p),
                         None => hkcr
-                            .open_subkey(ext)
+                            .open_subkey(&ext)
                             .ok()
                             .and_then(|k| k.open_subkey("OpenWithProgids").ok())
                             .map(|owp| {
