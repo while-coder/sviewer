@@ -3,7 +3,7 @@
  * 改扩展名清单 / 格式关联后必须运行 `pnpm gen:formats` 同步 Rust 侧与 tauri.conf.json。
  */
 import raw from './formats.json'
-import type { SaveFormat } from './types'
+import type { SaveFormat } from '../types'
 
 /** 受支持的扩展名（小写，不含点）。与 Rust 侧 formats_gen::SUPPORTED_EXT 同源。 */
 export const SUPPORTED_EXT = new Set(raw.supported)

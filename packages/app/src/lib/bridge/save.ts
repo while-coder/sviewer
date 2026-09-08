@@ -4,9 +4,9 @@
  * 重入锁由调用方持有（主窗口有菜单加速键 + webview 快捷键双触发问题）。
  */
 import { save as saveDialog } from '@tauri-apps/plugin-dialog'
-import { saveImageAs, encodeTo } from './bridge'
-import { SAVE_FILTERS, EXT_FORMAT, inferFormat, extOf } from './formats'
-import type { ImageEdits, SaveFormat } from './types'
+import { saveImageAs, encodeTo } from '../bridge/bridge'
+import { SAVE_FILTERS, EXT_FORMAT, inferFormat, extOf } from '../formats/formats'
+import type { ImageEdits, SaveFormat } from '../types'
 
 export async function saveAsViaDialog(args: {
   /** 源图片绝对路径 */

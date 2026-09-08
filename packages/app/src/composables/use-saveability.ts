@@ -1,6 +1,6 @@
 /** 「保存到原图」按钮的可用性与提示文案（主窗口与编辑窗口共用）。 */
 import { computed, type Ref } from 'vue'
-import { extOf, extSupportsEdit } from '../lib/formats'
+import { extOf, extSupportsEdit } from '../lib/formats/formats'
 import type { SaveFormat } from '../lib/types'
 
 export function useSaveability(options: {

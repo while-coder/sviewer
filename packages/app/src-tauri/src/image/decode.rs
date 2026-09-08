@@ -4,7 +4,7 @@
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 
-use crate::native_heic;
+use crate::image::native_heic;
 
 /// 把 WebView 无法直接渲染的格式解码为 PNG，返回 data URL。
 ///

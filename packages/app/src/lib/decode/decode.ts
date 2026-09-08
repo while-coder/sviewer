@@ -11,9 +11,9 @@
  * 依赖方向约束：本文件不得 import settings / geo 等应用层模块。
  */
 import { convertFileSrc, invoke } from '@tauri-apps/api/core'
-import { extOf, isWebNative, HEIF_EXT } from './formats'
-import { decodeToPng } from './bridge'
-import type { ImageSource } from './types'
+import { extOf, isWebNative, HEIF_EXT } from '../formats/formats'
+import { decodeToPng } from '../bridge/bridge'
+import type { ImageSource } from '../types'
 
 /**
  * 解析主窗口显示用的图片源：

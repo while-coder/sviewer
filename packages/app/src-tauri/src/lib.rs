@@ -1,52 +1,23 @@
 //! SViewer —— 独立图片查看器后端。
 //!
-//! 职责与模块划分：
+//! 职责与模块划分（按功能域归组，与前端 features/ 思路一致）：
 //! - [`launch`]：启动文件交接（双击关联 / 命令行）、单实例/多开、受支持格式判定；
-//! - [`image_info`]：同目录图片列表、元信息（尺寸 / 格式 / EXIF）读取；
-//! - [`decode`]：WebView 无法直接显示的格式解码（PNG data URL / RGBA8 裸像素）；
-//! - [`edit`]：编辑管线与编码落盘（另存为 / 保存到原图 / 批量转换共用）；
-//! - [`marks`]：标记绘制光栅化；
-//! - [`assoc`] / [`geo`] / [`native_heic`]：格式关联、逆地理编码、平台原生 HEIC 解码；
+//! - [`image`]：图像读取域（查看 / 编辑 / 转换共用）——目录列表与 EXIF、
+//!   非原生格式解码、平台原生 HEIC 解码；
+//! - [`edit`]：编辑落盘域（编辑窗口与批量转换共用）——编辑管线与编码落盘、标记光栅化；
+//! - [`assoc`] / [`geo`]：格式关联、逆地理编码（Tauri 命令定义在各自模块内）；
 //! - `formats_gen.rs`：由 scripts/gen-formats.cjs 生成，勿手改。
 
 mod assoc;
-mod decode;
 mod edit;
 mod formats_gen;
 mod geo;
-mod image_info;
+mod image;
 mod launch;
-mod marks;
-mod native_heic;
 
 use tauri::{Emitter, Manager};
 
 use launch::LaunchFile;
-
-/// 逆地理编码：EXIF GPS 坐标（WGS-84）→ 一行简略地名。详情抽屉打开时由前端懒调用。
-/// provider：osm（免 Key）/ amap / baidu（各自需要用户在设置里填的 Key）。
-#[tauri::command]
-async fn reverse_geocode(
-    lat: f64,
-    lng: f64,
-    provider: String,
-    amap_key: Option<String>,
-    baidu_key: Option<String>,
-) -> Result<Option<String>, String> {
-    geo::reverse_geocode(lat, lng, &provider, amap_key.as_deref(), baidu_key.as_deref()).await
-}
-
-/// 各扩展名当前默认应用状态（设置弹窗「格式关联」列表）。非 Windows 返回空列表。
-#[tauri::command]
-fn assoc_status() -> Vec<assoc::AssocStatus> {
-    assoc::status()
-}
-
-/// 把所选扩展名的默认打开方式设为 SViewer（设置弹窗一键关联，只写 HKCU）。
-#[tauri::command]
-fn assoc_set(exts: Vec<String>) -> Result<(), String> {
-    assoc::set(&exts)
-}
 
 /// 日志插件：stdout + webview + 文件（系统日志目录），本地时区，10MB 轮转保留 3 份。
 /// 日志位置（Windows）：%LOCALAPPDATA%/com.while.sviewer/logs/。
@@ -119,19 +90,19 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             launch::get_launch_file,
             launch::set_multi_instance,
-            image_info::list_dir_images,
-            image_info::read_image_info,
-            decode::decode_to_png,
-            decode::decode_heic,
-            decode::decode_raw,
-            decode::decode_thumb,
-            edit::save_image_as,
-            edit::encode_image,
-            edit::save_edits,
-            edit::unique_dest,
-            assoc_status,
-            assoc_set,
-            reverse_geocode,
+            image::info::list_dir_images,
+            image::info::read_image_info,
+            image::decode::decode_to_png,
+            image::decode::decode_heic,
+            image::decode::decode_raw,
+            image::decode::decode_thumb,
+            edit::pipeline::save_image_as,
+            edit::pipeline::encode_image,
+            edit::pipeline::save_edits,
+            edit::pipeline::unique_dest,
+            assoc::assoc_status,
+            assoc::assoc_set,
+            geo::reverse_geocode,
         ])
         .build(tauri::generate_context!())
         .expect("error while running sviewer");

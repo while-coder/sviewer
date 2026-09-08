@@ -11,10 +11,10 @@ import {
   readImageInfo,
   getLaunchFile,
   saveEditsTo,
-} from '../../lib/bridge'
-import { resolveImage, preloadImage } from '../../lib/decode'
-import { extOf, OPEN_FILTERS } from '../../lib/formats'
-import { saveAsViaDialog } from '../../lib/save'
+} from '../../lib/bridge/bridge'
+import { resolveImage, preloadImage } from '../../lib/decode/decode'
+import { extOf, OPEN_FILTERS } from '../../lib/formats/formats'
+import { saveAsViaDialog } from '../../lib/bridge/save'
 import { useImageView } from '../../composables/use-image-view'
 import { useSaveability } from '../../composables/use-saveability'
 import { useThemeSync } from '../../composables/use-theme-sync'

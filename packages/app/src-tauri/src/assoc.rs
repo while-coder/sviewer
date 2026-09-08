@@ -313,3 +313,17 @@ mod stub {
 pub use imp::{register, set, status};
 #[cfg(not(windows))]
 pub use stub::{register, set, status};
+
+// ── Tauri 命令（设置弹窗「格式关联」）──
+
+/// 各扩展名当前默认应用状态（设置弹窗「格式关联」列表）。非 Windows 返回空列表。
+#[tauri::command]
+pub fn assoc_status() -> Vec<AssocStatus> {
+    status()
+}
+
+/// 把所选扩展名的默认打开方式设为 SViewer（设置弹窗一键关联，只写 HKCU）。
+#[tauri::command]
+pub fn assoc_set(exts: Vec<String>) -> Result<(), String> {
+    set(&exts)
+}

@@ -5,10 +5,10 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::decode::decode_any;
 use crate::formats_gen;
-use crate::image_info::exif_orientation;
-use crate::marks::bake_marks;
+use crate::image::decode::decode_any;
+use crate::image::info::exif_orientation;
+use super::marks::{bake_marks, Mark};
 
 /// 裁剪矩形：显示空间（EXIF 归一化 + 旋转 + 镜像之后）的像素坐标，左上原点。
 #[derive(serde::Deserialize)]
@@ -18,19 +18,6 @@ pub(crate) struct CropRect {
     pub(crate) y: u32,
     pub(crate) w: u32,
     pub(crate) h: u32,
-}
-
-/// 一条标记笔画：显示空间（EXIF 归一化 + 旋转 + 镜像之后，裁剪前）的像素坐标。
-/// kind：rect / ellipse（pts 为对角两点）、arrow（起点→终点）、pen（折线点集）。
-#[derive(serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct Mark {
-    pub(crate) kind: String,
-    /// "#rrggbb"
-    pub(crate) color: String,
-    /// 线宽（显示空间像素）
-    pub(crate) width: f64,
-    pub(crate) pts: Vec<(f64, f64)>,
 }
 
 /// 一次编辑/转换的完整参数。crop/resize/quality 为 None 即不做该步。

@@ -28,9 +28,24 @@ fn client() -> &'static reqwest::Client {
     })
 }
 
+// ── Tauri 命令（主窗口详情抽屉懒调用）──
+
+/// 逆地理编码：EXIF GPS 坐标（WGS-84）→ 一行简略地名。
+/// provider：osm（免 Key）/ amap / baidu（各自需要用户在设置里填的 Key）。
+#[tauri::command]
+pub async fn reverse_geocode(
+    lat: f64,
+    lng: f64,
+    provider: String,
+    amap_key: Option<String>,
+    baidu_key: Option<String>,
+) -> Result<Option<String>, String> {
+    reverse_geocode_inner(lat, lng, &provider, amap_key.as_deref(), baidu_key.as_deref()).await
+}
+
 /// 逆地理编码入口。返回简略地名（如「北京市海淀区中关村大街 1 号」），查不到返回 None。
 /// provider：osm / amap / baidu；amap、baidu 需要对应 Key，缺 Key 时报错提示。
-pub async fn reverse_geocode(
+async fn reverse_geocode_inner(
     lat: f64,
     lng: f64,
     provider: &str,

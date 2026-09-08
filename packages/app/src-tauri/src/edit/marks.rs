@@ -3,7 +3,18 @@
 //! 标记存「显示空间」坐标（前端 SVG 预览所见即所得），落盘时按裁剪偏移与
 //! 改尺寸缩放换算到最终像素（见 [`bake_marks`]）。
 
-use crate::edit::Mark;
+/// 一条标记笔画：显示空间（EXIF 归一化 + 旋转 + 镜像之后，裁剪前）的像素坐标。
+/// kind：rect / ellipse（pts 为对角两点）、arrow（起点→终点）、pen（折线点集）。
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct Mark {
+    pub(crate) kind: String,
+    /// "#rrggbb"
+    pub(crate) color: String,
+    /// 线宽（显示空间像素）
+    pub(crate) width: f64,
+    pub(crate) pts: Vec<(f64, f64)>,
+}
 
 /// "#rgb" / "#rrggbb" → RGB 三元组。
 fn parse_color(s: &str) -> Option<[u8; 3]> {
@@ -141,8 +152,7 @@ pub(crate) fn bake_marks(
 
 #[cfg(test)]
 mod tests {
-    use super::bake_marks;
-    use crate::edit::Mark;
+    use super::{bake_marks, Mark};
     use image::DynamicImage;
 
     /// 标记：矩形描边应染成指定颜色，框内保持原色。

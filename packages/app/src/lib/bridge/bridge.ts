@@ -3,7 +3,7 @@
  * 组件层不直接接触 @tauri-apps/api/core。
  */
 import { invoke } from '@tauri-apps/api/core'
-import type { ImageInfo, ImageEdits, SaveFormat, SaveOutcome } from './types'
+import type { ImageInfo, ImageEdits, SaveFormat, SaveOutcome } from '../types'
 
 /** 启动时（双击文件 / 命令行）传入的待打开文件，取一次后清空；无则返回 null。 */
 export function getLaunchFile(): Promise<string | null> {
