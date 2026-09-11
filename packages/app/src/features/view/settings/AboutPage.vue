@@ -52,10 +52,10 @@ function checkUpdate() {
 <template>
   <div class="about-page">
     <section class="about-hero">
-      <img class="about-logo" src="/sviewer-icon.png" alt="素阅" />
+      <img class="about-logo" src="/sviewer-icon.png" alt="速阅" />
       <div class="about-product">
         <div class="about-title-row">
-          <h2>素阅</h2>
+          <h2>速阅</h2>
           <span v-if="appVersion" class="vtag">v{{ appVersion }}</span>
         </div>
         <p>轻量级本地图片查看器</p>

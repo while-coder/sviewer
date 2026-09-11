@@ -43,7 +43,7 @@ export function useAppMenu(onAction: (a: AppMenuAction) => void) {
         item('actual-size', '原始大小', 'CmdOrCtrl+1'),
         item('toggle-info', '信息面板', 'CmdOrCtrl+I'),
         item('settings', '设置…', 'CmdOrCtrl+,'),
-        item('about', '关于素阅'),
+        item('about', '关于速阅'),
       ])
 
       const file = await Submenu.new({
@@ -63,7 +63,7 @@ export function useAppMenu(onAction: (a: AppMenuAction) => void) {
         // 「关于」按平台惯例放应用菜单，打开后跳到设置弹窗的「关于」页
         const app = await Submenu.new({
           id: 'menu:app',
-          text: '素阅',
+          text: '速阅',
           items: [about, sep(), { item: 'Hide' }, { item: 'HideOthers' }, { item: 'ShowAll' }, sep(), { item: 'Quit' }],
         })
         submenus.unshift(app)

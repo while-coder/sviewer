@@ -70,7 +70,7 @@ async function openBatch() {
     return
   }
   new WebviewWindow('batch', {
-    title: '批量转换 - 素阅',
+    title: '批量转换 - 速阅',
     url: 'batch.html',
     width: 760,
     height: 540,
@@ -99,7 +99,7 @@ async function openEdit() {
     return
   }
   new WebviewWindow('edit', {
-    title: '编辑 - 素阅',
+    title: '编辑 - 速阅',
     url: `edit.html?path=${encodeURIComponent(p)}`,
     width: 980,
     height: 660,
@@ -220,7 +220,7 @@ const counter = computed(() =>
 )
 // 窗口标题：文件名 · 计数 · 尺寸 · 大小 · 缩放（顶栏已省掉，信息全放标题栏）
 const title = computed(() => {
-  if (!info.value) return '素阅 SViewer'
+  if (!info.value) return '速阅'
   const parts = [info.value.fileName]
   if (counter.value) parts.push(counter.value)
   if (info.value.width > 0) parts.push(`${info.value.width} × ${info.value.height}`)
@@ -670,7 +670,7 @@ onUnmounted(() => {
         <button class="ctx-item" @click="ctxAct(() => toggleFullscreen())">全屏<span class="k">F11</span></button>
         <div class="ctx-sep" />
         <button class="ctx-item" @click="ctxAct(() => (modal = 'settings'))">设置…</button>
-        <button class="ctx-item" @click="ctxAct(openAbout)">关于素阅</button>
+        <button class="ctx-item" @click="ctxAct(openAbout)">关于速阅</button>
       </nav>
     </div>
 

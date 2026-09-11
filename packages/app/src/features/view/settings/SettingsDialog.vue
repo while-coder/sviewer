@@ -120,7 +120,7 @@ watch(
               </div>
 
               <div class="row">
-                <span class="label">允许多开<small>可同时打开多个素阅窗口，重启后生效</small></span>
+                <span class="label">允许多开<small>可同时打开多个速阅窗口，重启后生效</small></span>
                 <div class="seg">
                   <button :class="{ on: settings.allowMulti }" @click="settings.allowMulti = true">开</button>
                   <button :class="{ on: !settings.allowMulti }" @click="settings.allowMulti = false">关</button>

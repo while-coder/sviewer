@@ -1,4 +1,4 @@
-# 素阅 SViewer
+# 速阅
 
 轻量级本地图片查看器（Windows / macOS），Tauri 2 + Vue 3 实现。
 不联网上传任何图片；HEIC/HEIF 走系统原生解码（Windows WIC / macOS Image I/O），

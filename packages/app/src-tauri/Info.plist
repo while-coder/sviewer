@@ -6,8 +6,8 @@
   - CFBundleLocalizations：向系统声明应用支持的语言。macOS 的预定义菜单项
     （Hide / Hide Others / Show All / Quit 等）由系统按「用户语言 ∩ 应用声明语言」
     出标题——不声明中文时，简中文系统上也会显示英文。声明 zh-Hans 后即显示
-    「隐藏素阅 / 退出素阅」等。
-  - CFBundleDisplayName：Finder / Dock 里的显示名（素阅.app）。
+    「隐藏速阅 / 退出速阅」等。
+  - CFBundleDisplayName：Finder / Dock 里的显示名（速阅.app）。
     包文件名仍由 productName（SViewer）决定，安装路径与更新器产物名不受影响，
     不会出现新旧两个应用。
 -->
@@ -21,6 +21,6 @@
       <string>en</string>
     </array>
     <key>CFBundleDisplayName</key>
-    <string>素阅</string>
+    <string>速阅</string>
   </dict>
 </plist>

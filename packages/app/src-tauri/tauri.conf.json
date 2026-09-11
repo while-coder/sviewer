@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "素阅 SViewer",
+        "title": "速阅",
         "width": 1100,
         "height": 720,
         "minWidth": 500,
@@ -35,7 +35,7 @@
     "active": true,
     "publisher": "while",
     "macOS": {
-      "bundleName": "素阅"
+      "bundleName": "速阅"
     },
     "createUpdaterArtifacts": true,
     "targets": [

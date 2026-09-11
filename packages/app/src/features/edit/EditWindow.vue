@@ -84,7 +84,7 @@ const modified = computed(
 const pct = computed(() => `${Math.round(view.scale * 100)}%`)
 watchEffect(() => {
   const name = info.value?.fileName
-  getCurrentWindow().setTitle(name ? `编辑 - ${name} - 素阅` : '编辑 - 素阅').catch(() => {})
+  getCurrentWindow().setTitle(name ? `编辑 - ${name} - 速阅` : '编辑 - 速阅').catch(() => {})
 })
 
 // ── 加载图片 ───────────────────────────────────────────
