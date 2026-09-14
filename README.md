@@ -65,17 +65,19 @@ packages/
 │       └── styles/common.css   # 主题变量 + 两窗口共用的画布基础样式
 └── icon/                       # 图标源文件（scripts/sync-icons.js 分发到各平台）
 
-packages/app/src-tauri/src/     # Rust 后端
+packages/app/src-tauri/src/     # Rust 后端（按功能域归组，与前端 features/ 思路一致）
 ├── lib.rs                      # run() / 插件注册 / invoke_handler（~160 行）
-├── launch.rs                   # 启动文件交接、单实例/多开、受支持格式判定
-├── image/                      # 图像读取域（查看/编辑/转换共用）
+├── system/                     # 系统集成域
+│   ├── launch.rs               #   启动文件交接、单实例/多开、受支持格式判定
+│   └── assoc.rs                #   格式关联（Tauri 命令定义在各自模块内）
+├── view/                       # 查看域（对应前端 features/view，读取部分三窗口共用）
 │   ├── info.rs                 #   同目录列表、尺寸 / 格式 / EXIF
-│   ├── decode.rs               #   解码：PNG data URL / RGBA8 裸像素 / HEIC 原生
-│   └── native_heic.rs          #   平台原生 HEIC 解码（WIC / Image I/O）
+│   ├── decode.rs               #   解码：PNG data URL / RGBA8 裸像素
+│   ├── native_heic.rs          #   平台原生 HEIC 解码（WIC / Image I/O）
+│   └── geo.rs                  #   逆地理编码（对应前端 view/lib/geo.ts）
 ├── edit/                       # 编辑落盘域（编辑窗口与批量转换共用）
 │   ├── pipeline.rs             #   编辑管线与编码落盘
 │   └── marks.rs                #   标记绘制光栅化
-├── assoc.rs / geo.rs           # 格式关联 / 逆地理编码（Tauri 命令定义在各自模块内）
 └── formats_gen.rs              # 生成物（scripts/gen-formats.cjs 生成，勿手改）
 ```
 

@@ -1,23 +1,21 @@
 //! SViewer —— 独立图片查看器后端。
 //!
 //! 职责与模块划分（按功能域归组，与前端 features/ 思路一致）：
-//! - [`launch`]：启动文件交接（双击关联 / 命令行）、单实例/多开、受支持格式判定；
-//! - [`image`]：图像读取域（查看 / 编辑 / 转换共用）——目录列表与 EXIF、
-//!   非原生格式解码、平台原生 HEIC 解码；
+//! - [`system`]：系统集成域——启动文件交接（双击关联 / 命令行）、单实例/多开、
+//!   Windows 格式关联（Tauri 命令定义在各自模块内）；
+//! - [`view`]：查看域（对应前端 features/view，目录列表 / 解码 / EXIF 三个窗口共用）
+//!   ——逆地理编码对应前端 view/lib/geo.ts；
 //! - [`edit`]：编辑落盘域（编辑窗口与批量转换共用）——编辑管线与编码落盘、标记光栅化；
-//! - [`assoc`] / [`geo`]：格式关联、逆地理编码（Tauri 命令定义在各自模块内）；
 //! - `formats_gen.rs`：由 scripts/gen-formats.cjs 生成，勿手改。
 
-mod assoc;
 mod edit;
 mod formats_gen;
-mod geo;
-mod image;
-mod launch;
+mod system;
+mod view;
 
 use tauri::{Emitter, Manager};
 
-use launch::LaunchFile;
+use system::launch::LaunchFile;
 
 /// 日志插件：stdout + webview + 文件（系统日志目录），本地时区，10MB 轮转保留 3 份。
 /// 日志位置（Windows）：%LOCALAPPDATA%/com.while.sviewer/logs/。
@@ -48,11 +46,11 @@ pub fn run() {
     let builder = tauri::Builder::default();
     // single-instance 必须最先注册：第二次启动把图片路径转交给已有窗口。
     // 设置里开了「允许多开」则不注册，第二实例独立成窗。
-    let builder = if launch::multi_instance_enabled() {
+    let builder = if system::launch::multi_instance_enabled() {
         builder
     } else {
         builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
-            if let Some(file) = launch::pick_image_arg(&argv) {
+            if let Some(file) = system::launch::pick_image_arg(&argv) {
                 let _ = app.emit("open-file", file);
             }
             if let Some(w) = app.get_webview_window("main") {
@@ -75,12 +73,12 @@ pub fn run() {
             log::info!("SViewer v{} 启动", app.package_info().version);
             // 注册/刷新系统图片查看器关联（只写 HKCU）。每次启动都刷，exe 挪位置后路径自动跟上
             #[cfg(windows)]
-            match assoc::register() {
+            match system::assoc::register() {
                 Ok(()) => log::info!("已注册系统图片查看器（HKCU）"),
                 Err(e) => log::warn!("注册图片查看器失败：{e}"),
             }
             // 记录首次启动时命令行带入的图片，前端就绪后通过 get_launch_file 取走
-            if let Some(file) = launch::pick_image_arg(&std::env::args().collect::<Vec<_>>()) {
+            if let Some(file) = system::launch::pick_image_arg(&std::env::args().collect::<Vec<_>>()) {
                 if let Some(state) = app.try_state::<LaunchFile>() {
                     *state.0.lock().unwrap() = Some(file);
                 }
@@ -88,21 +86,21 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            launch::get_launch_file,
-            launch::set_multi_instance,
-            image::info::list_dir_images,
-            image::info::read_image_info,
-            image::decode::decode_to_png,
-            image::decode::decode_heic,
-            image::decode::decode_raw,
-            image::decode::decode_thumb,
+            system::launch::get_launch_file,
+            system::launch::set_multi_instance,
+            view::info::list_dir_images,
+            view::info::read_image_info,
+            view::decode::decode_to_png,
+            view::decode::decode_heic,
+            view::decode::decode_raw,
+            view::decode::decode_thumb,
             edit::pipeline::save_image_as,
             edit::pipeline::encode_image,
             edit::pipeline::save_edits,
             edit::pipeline::unique_dest,
-            assoc::assoc_status,
-            assoc::assoc_set,
-            geo::reverse_geocode,
+            system::assoc::assoc_status,
+            system::assoc::assoc_set,
+            view::geo::reverse_geocode,
         ])
         .build(tauri::generate_context!())
         .expect("error while running sviewer");
@@ -115,7 +113,7 @@ pub fn run() {
         if let tauri::RunEvent::Opened { urls } = &event {
             for url in urls {
                 let Ok(path) = url.to_file_path() else { continue };
-                if !path.is_file() || !launch::is_supported(&path) {
+                if !path.is_file() || !system::launch::is_supported(&path) {
                     continue;
                 }
                 let file = path.to_string_lossy().into_owned();

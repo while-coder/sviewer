@@ -6,8 +6,8 @@
 use std::path::{Path, PathBuf};
 
 use crate::formats_gen;
-use crate::image::decode::decode_any;
-use crate::image::info::exif_orientation;
+use crate::view::decode::decode_any;
+use crate::view::info::exif_orientation;
 use super::marks::{bake_marks, Mark};
 
 /// 裁剪矩形：显示空间（EXIF 归一化 + 旋转 + 镜像之后）的像素坐标，左上原点。

@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 
-use crate::launch::is_supported;
+use crate::system::launch::is_supported;
 
 #[derive(Serialize)]
 pub(crate) struct ExifEntry {
