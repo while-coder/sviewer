@@ -5,7 +5,8 @@
 /// 受支持的图片扩展名（小写，不含点）。用于目录列举与启动参数识别。
 /// - jpe/jfif 是 JPEG 别名、hif 是 HEIF 容器，分别沿用 JPEG/HEIC 的解码通道；
 /// - svg 交给 WebView 渲染；
-/// - tga/pbm/pgm/ppm/pnm/dds/hdr/exr/qoi 由 image crate 解码（默认 feature 已带）。
+/// - tga/pbm/pgm/ppm/pnm/dds/hdr/exr/qoi 由 image crate 解码（默认 feature 已带）；
+/// - psd 由 view/psd.rs 自实现解码（合成图预览，RLE / 未压缩，8/16-bit）。
 pub const SUPPORTED_EXT: &[&str] = &[
     "jpg",
     "jpeg",
@@ -32,6 +33,7 @@ pub const SUPPORTED_EXT: &[&str] = &[
     "hdr",
     "exr",
     "qoi",
+    "psd",
 ];
 
 /// 可直接改写原图的扩展名（heic 无编码器、svg 矢量、gif 动图会丢帧）→ 保存格式名。

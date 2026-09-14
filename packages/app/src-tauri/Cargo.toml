@@ -32,6 +32,7 @@ log = "0.4"
 image = "0.25"
 # EXIF 读取（crate 包名 kamadak-exif，import 名为 exif）
 kamadak-exif = "0.6"
+# PSD 合成图解码为 view/psd.rs 自实现（zune-psd 未压缩路径有 bug，见该模块文档）
 base64 = "0.22"
 # 逆地理编码（EXIF GPS 坐标 → 地名）：请求 Nominatim / 高德 / 百度的 HTTP 接口。
 # rustls 免系统 OpenSSL 依赖，json 用 serde_json 解析响应。

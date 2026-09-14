@@ -1,20 +1,39 @@
 //! 平台原生 HEIC/HEIF 解码：Windows 走 WIC，macOS 走 Image I/O。
 //!
-//! 输出统一为：8 字节头（宽 u32 LE + 高 u32 LE）+ RGBA8 像素数据，
-//! 前端在子线程包成 ImageBitmap 供 canvas 直显（见 heic-worker.ts）。
+//! 裸像素统一为：8 字节头（宽 u32 LE + 高 u32 LE）+ RGBA8 像素数据，
+//! 前端在子线程包成 ImageBitmap 供 canvas 直显（见 decode-worker.ts）。
 //!
 //! 失败（Linux、系统没装 HEIF/HEVC 解码扩展等）返回 Err，前端自动回退
 //! libheif WASM 解码，功能无损。
 //!
 //! 关于方向：HEIF 容器级变换（irot/imir）由各平台解码器按格式规范处理，
 //! 与 libheif WASM 的行为一致；这里不再叠加 EXIF Orientation 标签，避免双重旋转。
+//!
+//! 对外两个入口（与 psd 模块对称）：
+//! - [`raw_rgba`]：「头 + RGBA8」裸像素，decode_heic 命令的零序列化通道；
+//! - [`decode`]：包成 DynamicImage，decode_any 的 heic 分支调用。
+
+use image::DynamicImage;
 
 /// 头部长度：宽 u32 + 高 u32（小端）
 pub const HEADER_LEN: usize = 8;
 
-/// 解码为「头 + RGBA8」。仅用于 HEIC/HEIF（前端 heic/heif 分支才会调用）。
-pub fn decode(path: &str) -> Result<Vec<u8>, String> {
+/// 解码为「头 + RGBA8」裸像素。仅用于 HEIC/HEIF（前端 heic/heif 分支才会调用）。
+pub fn raw_rgba(path: &str) -> Result<Vec<u8>, String> {
     imp::decode(path)
+}
+
+/// 解码为 DynamicImage（decode_any 管线入口）。
+pub fn decode(path: &str) -> Result<DynamicImage, String> {
+    let buf = raw_rgba(path)?;
+    if buf.len() < HEADER_LEN {
+        return Err("解码数据不完整".into());
+    }
+    let w = u32::from_le_bytes([buf[0], buf[1], buf[2], buf[3]]);
+    let h = u32::from_le_bytes([buf[4], buf[5], buf[6], buf[7]]);
+    image::RgbaImage::from_raw(w, h, buf[HEADER_LEN..].to_vec())
+        .ok_or_else(|| "解码数据长度不符".to_string())
+        .map(Into::into)
 }
 
 #[cfg(any(target_os = "windows", target_os = "macos"))]
@@ -280,7 +299,7 @@ mod tests {
             return;
         };
         let t0 = std::time::Instant::now();
-        let data = super::decode(&path).expect("原生解码失败");
+        let data = super::raw_rgba(&path).expect("原生解码失败");
         let ms = t0.elapsed().as_millis();
         let w = u32::from_le_bytes([data[0], data[1], data[2], data[3]]);
         let h = u32::from_le_bytes([data[4], data[5], data[6], data[7]]);

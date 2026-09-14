@@ -206,6 +206,18 @@
       },
       {
         "ext": [
+          "psd"
+        ],
+        "name": "Photoshop 图像",
+        "description": "图片文件",
+        "role": "Viewer",
+        "contentTypes": [
+          "com.adobe.photoshop-image"
+        ],
+        "mimeType": "image/vnd.adobe.photoshop"
+      },
+      {
+        "ext": [
           "pbm",
           "pgm",
           "ppm",

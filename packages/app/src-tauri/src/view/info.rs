@@ -77,14 +77,21 @@ pub(crate) fn read_image_info(path: String) -> Result<ImageInfo, String> {
     let p = PathBuf::from(&path);
     let size = std::fs::metadata(&p).map(|m| m.len()).unwrap_or(0);
     let exif = read_exif(&p);
-    // 按内容嗅探格式（jpe/jfif 等别名扩展名靠这一步识别），拿不到再退 EXIF 尺寸
+    // 按内容嗅探格式（jpe/jfif 等别名扩展名靠这一步识别），拿不到再退 PSD 头 / EXIF 尺寸
+    // （image crate 不认 PSD，PSD 也没有 EXIF，靠读 26 字节文件头取尺寸）
     let reader = image::ImageReader::open(&p)
         .ok()
         .and_then(|r| r.with_guessed_format().ok());
     let fmt = reader.as_ref().and_then(|r| r.format());
     let (width, height) = match reader.map(|r| r.into_dimensions()) {
         Some(Ok(d)) => d,
-        _ => exif_dimensions(&exif),
+        _ => {
+            if p.extension().and_then(|e| e.to_str()).map(|e| e.eq_ignore_ascii_case("psd")).unwrap_or(false) {
+                super::decode::psd::dimensions(&path).unwrap_or((0, 0))
+            } else {
+                exif_dimensions(&exif)
+            }
+        }
     };
     let format = fmt
         .map(|f| format!("{:?}", f).to_uppercase())

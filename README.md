@@ -19,11 +19,11 @@
 
 清单的唯一来源是 [packages/app/src/lib/formats/formats.json](packages/app/src/lib/formats/formats.json)：
 
-- **可查看**（25 种）：jpg / jpeg / jpe / jfif、png、gif、webp、bmp、ico、svg、
-  tiff / tif、avif、heic / heif / hif、tga、pbm / pgm / ppm / pnm、dds、hdr、exr、qoi
+- **可查看**（26 种）：jpg / jpeg / jpe / jfif、png、gif、webp、bmp、ico、svg、
+  tiff / tif、avif、heic / heif / hif、tga、pbm / pgm / ppm / pnm、dds、hdr、exr、qoi、psd
 - **可直接写回原图**：jpg、png、webp、bmp、tiff、avif、tga、qoi、exr
-  （heic 无编码器、svg 是矢量、gif 动图会丢帧，前端禁用保存按钮）
-- **批量转换可作源**：web 原生格式 + tiff + heic / heif（svg 矢量不参与）
+  （heic 无编码器、svg 是矢量、gif 动图会丢帧、psd 无编码器，前端禁用保存按钮）
+- **批量转换可作源**：web 原生格式 + tiff + heic / heif + psd（svg 矢量不参与）
 
 ## 开发
 
@@ -66,14 +66,17 @@ packages/
 └── icon/                       # 图标源文件（scripts/sync-icons.js 分发到各平台）
 
 packages/app/src-tauri/src/     # Rust 后端（按功能域归组，与前端 features/ 思路一致）
-├── lib.rs                      # run() / 插件注册 / invoke_handler（~160 行）
+├── lib.rs                      # 纯装配：run() / 插件注册 / invoke_handler（~110 行）
 ├── system/                     # 系统集成域
 │   ├── launch.rs               #   启动文件交接、单实例/多开、受支持格式判定
-│   └── assoc.rs                #   格式关联（Tauri 命令定义在各自模块内）
+│   ├── assoc.rs                #   格式关联（Tauri 命令定义在各自模块内）
+│   └── logging.rs              #   日志插件构建（stdout + webview + 文件轮转）
 ├── view/                       # 查看域（对应前端 features/view，读取部分三窗口共用）
 │   ├── info.rs                 #   同目录列表、尺寸 / 格式 / EXIF
-│   ├── decode.rs               #   解码：PNG data URL / RGBA8 裸像素
-│   ├── native_heic.rs          #   平台原生 HEIC 解码（WIC / Image I/O）
+│   ├── decode/                 #   解码（decode_any 分发 + 特殊格式子模块）
+│   │   ├── mod.rs              #     PNG data URL / RGBA8 裸像素命令
+│   │   ├── heic.rs             #     平台原生 HEIC 解码（WIC / Image I/O）
+│   │   └── psd.rs              #     PSD 合成图解码（自实现，仅预览）
 │   └── geo.rs                  #   逆地理编码（对应前端 view/lib/geo.ts）
 ├── edit/                       # 编辑落盘域（编辑窗口与批量转换共用）
 │   ├── pipeline.rs             #   编辑管线与编码落盘

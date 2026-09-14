@@ -1,10 +1,15 @@
 //! 解码：WebView 无法直接渲染的格式转 PNG data URL / RGBA8 裸像素。
 //!
-//! HEIC/HEIF 走平台原生解码（native_heic），其余按内容嗅探走 `image` crate。
+//! 子模块存放需要专门解码器的特殊格式，普通格式按内容嗅探走 `image` crate：
+//! - [`heic`]：HEIC/HEIF 平台原生解码（WIC / Image I/O）；
+//! - [`psd`]：PSD 自实现合成图解码。
+//!
+//! 新增特殊格式时在 [`decode_any`] 加扩展名分支 + 新建子模块（照 psd 抄）。
+
+pub mod heic;
+pub mod psd;
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
-
-use super::native_heic;
 
 /// 把 WebView 无法直接渲染的格式解码为 PNG，返回 data URL。
 ///
@@ -38,7 +43,7 @@ pub(crate) fn decode_thumb(path: String, max_px: u32) -> Result<String, String> 
 /// Linux 或系统未装 HEIF/HEVC 解码扩展时返回 Err，前端自动回退 libheif WASM。
 #[tauri::command]
 pub(crate) fn decode_heic(path: String) -> Result<tauri::ipc::Response, String> {
-    native_heic::decode(&path).map(tauri::ipc::Response::new)
+    heic::raw_rgba(&path).map(tauri::ipc::Response::new)
 }
 
 /// 任意格式解码为「头 + RGBA8」裸像素（主窗口 canvas 直显）。
@@ -49,14 +54,14 @@ pub(crate) fn decode_raw(path: String) -> Result<tauri::ipc::Response, String> {
     let img = decode_any(&path)?;
     let rgba = img.to_rgba8();
     let (w, h) = (rgba.width(), rgba.height());
-    let mut out = Vec::with_capacity(native_heic::HEADER_LEN + w as usize * h as usize * 4);
+    let mut out = Vec::with_capacity(heic::HEADER_LEN + w as usize * h as usize * 4);
     out.extend_from_slice(&w.to_le_bytes());
     out.extend_from_slice(&h.to_le_bytes());
     out.extend_from_slice(rgba.as_raw());
     Ok(tauri::ipc::Response::new(out))
 }
 
-/// 任意受支持格式 → DynamicImage（HEIC 走原生解码，其余走 image crate）。
+/// 任意受支持格式 → DynamicImage（HEIC 走原生解码、PSD 走合成图解码，其余走 image crate）。
 /// 解码管线唯一入口：编辑 / 缩略图 / 裸像素显示共用。
 pub(crate) fn decode_any(path: &str) -> Result<image::DynamicImage, String> {
     let p = std::path::PathBuf::from(path);
@@ -66,15 +71,11 @@ pub(crate) fn decode_any(path: &str) -> Result<image::DynamicImage, String> {
         .unwrap_or("")
         .to_lowercase();
     if ext == "heic" || ext == "heif" || ext == "hif" {
-        let buf = native_heic::decode(path)?;
-        if buf.len() < native_heic::HEADER_LEN {
-            return Err("解码数据不完整".into());
-        }
-        let w = u32::from_le_bytes([buf[0], buf[1], buf[2], buf[3]]);
-        let h = u32::from_le_bytes([buf[4], buf[5], buf[6], buf[7]]);
-        image::RgbaImage::from_raw(w, h, buf[native_heic::HEADER_LEN..].to_vec())
-            .ok_or_else(|| "解码数据长度不符".to_string())
-            .map(Into::into)
+        // 平台原生解码；失败时前端回退 libheif WASM
+        heic::decode(path)
+    } else if ext == "psd" {
+        // image crate 不支持 PSD，走自实现合成图解码
+        psd::decode(path)
     } else {
         // 按内容嗅探格式：jpe/jfif 等别名扩展名 image::open 认不出，内容识别都能走通
         image::ImageReader::open(&p)

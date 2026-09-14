@@ -2,12 +2,12 @@
   "$comment": "图片格式单一事实来源。前端由 lib/formats/formats.ts 消费；Rust 侧与 tauri.conf.json 的 fileAssociations 由 scripts/gen-formats.cjs 生成（pnpm gen:formats）。修改清单后必须重新运行生成脚本并提交生成物。",
   "supported": [
     "jpg", "jpeg", "jpe", "jfif", "png", "gif", "webp", "bmp", "ico", "svg", "tiff", "tif",
-    "avif", "heic", "heif", "hif", "tga", "pbm", "pgm", "ppm", "pnm", "dds", "hdr", "exr", "qoi"
+    "avif", "heic", "heif", "hif", "tga", "pbm", "pgm", "ppm", "pnm", "dds", "hdr", "exr", "qoi", "psd"
   ],
   "webNative": ["jpg", "jpeg", "jpe", "jfif", "png", "gif", "webp", "bmp", "ico", "svg", "avif"],
   "heif": ["heic", "heif", "hif"],
   "editable": ["jpg", "jpeg", "jpe", "jfif", "png", "webp", "bmp", "tiff", "tif", "avif", "tga", "qoi", "exr"],
-  "convertible": ["jpg", "jpeg", "png", "gif", "webp", "bmp", "ico", "tiff", "tif", "avif", "heic", "heif"],
+  "convertible": ["jpg", "jpeg", "png", "gif", "webp", "bmp", "ico", "tiff", "tif", "avif", "heic", "heif", "psd"],
   "fileAssociations": [
     {
       "ext": ["jpg", "jpeg", "jpe", "jfif"],
@@ -104,6 +104,14 @@
       "role": "Viewer",
       "contentTypes": ["com.ilm.openexr-image"],
       "mimeType": "image/x-exr"
+    },
+    {
+      "ext": ["psd"],
+      "name": "Photoshop 图像",
+      "description": "图片文件",
+      "role": "Viewer",
+      "contentTypes": ["com.adobe.photoshop-image"],
+      "mimeType": "image/vnd.adobe.photoshop"
     },
     {
       "ext": ["pbm", "pgm", "ppm", "pnm", "dds", "hdr", "qoi"],

@@ -2,11 +2,13 @@
 //!
 //! 职责与模块划分（按功能域归组，与前端 features/ 思路一致）：
 //! - [`system`]：系统集成域——启动文件交接（双击关联 / 命令行）、单实例/多开、
-//!   Windows 格式关联（Tauri 命令定义在各自模块内）；
+//!   Windows 格式关联、日志（Tauri 命令定义在各自模块内）；
 //! - [`view`]：查看域（对应前端 features/view，目录列表 / 解码 / EXIF 三个窗口共用）
-//!   ——逆地理编码对应前端 view/lib/geo.ts；
+//!   ——HEIC 平台原生解码、PSD 合成图解码（自实现）、逆地理编码对应前端 view/lib/geo.ts；
 //! - [`edit`]：编辑落盘域（编辑窗口与批量转换共用）——编辑管线与编码落盘、标记光栅化；
 //! - `formats_gen.rs`：由 scripts/gen-formats.cjs 生成，勿手改。
+//!
+//! 本文件只做应用装配：插件注册、单实例、Tauri 命令注册。
 
 mod edit;
 mod formats_gen;
@@ -16,30 +18,6 @@ mod view;
 use tauri::{Emitter, Manager};
 
 use system::launch::LaunchFile;
-
-/// 日志插件：stdout + webview + 文件（系统日志目录），本地时区，10MB 轮转保留 3 份。
-/// 日志位置（Windows）：%LOCALAPPDATA%/com.while.sviewer/logs/。
-fn logging_plugin() -> tauri::plugin::TauriPlugin<tauri::Wry> {
-    use tauri_plugin_log::{RotationStrategy, Target, TargetKind, TimezoneStrategy};
-
-    let level = if cfg!(debug_assertions) {
-        log::LevelFilter::Debug
-    } else {
-        log::LevelFilter::Info
-    };
-
-    tauri_plugin_log::Builder::new()
-        .level(level)
-        .targets([
-            Target::new(TargetKind::Stdout),
-            Target::new(TargetKind::Webview),
-            Target::new(TargetKind::LogDir { file_name: None }),
-        ])
-        .timezone_strategy(TimezoneStrategy::UseLocal)
-        .max_file_size(10_000_000)
-        .rotation_strategy(RotationStrategy::KeepSome(3))
-        .build()
-}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -60,7 +38,7 @@ pub fn run() {
         }))
     };
     let builder = builder
-        .plugin(logging_plugin())
+        .plugin(system::logging::plugin())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_process::init());
