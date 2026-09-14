@@ -4,6 +4,17 @@
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## 0.0.4
+
+### 新增
+
+- 支持 PSD 格式查看（可查看格式增至 26 种）：自实现 Photoshop 合成图解码，显示合并后的预览图像（不解析图层内容）；psd 无编码器，编辑窗口禁用直接写回原图，批量转换可作为源格式；安装包按标准 UTI（com.adobe.photoshop-image）声明关联，可设为默认打开方式。
+- 内置日志系统：输出到 stdout、webview 控制台与系统日志目录（10MB 轮转，保留 3 份），Debug 构建记录 Debug 级、发布构建记录 Info 级。
+
+### 修复
+
+- 统一应用名「速阅」：窗口标题、关于页等界面残留的 SViewer / 素阅 文案改为速阅。
+
 ## 0.0.3
 
 ### 新增
