@@ -158,7 +158,8 @@ fn be16(data: &[u8], at: usize) -> Result<u16, String> {
 }
 
 /// PackBits 解压（PSD RLE）：控制字节 ≥0 为「后随 n+1 字节字面量」，
-/// ≤-2 为「下一字节重复 -n 次」，-128 为空操作。
+/// -1..=-127 为「下一字节重复 1-n 次」（2~128，注意不是 -n，每个游程多 1），
+/// -128 为空操作。
 fn unpack_rle(src: &[u8], expected: usize) -> Result<Vec<u8>, String> {
     let mut out = Vec::with_capacity(expected);
     let mut i = 0;
@@ -177,7 +178,7 @@ fn unpack_rle(src: &[u8], expected: usize) -> Result<Vec<u8>, String> {
             -127..=-1 => {
                 let b = *src.get(i).ok_or_else(|| "PSD RLE 数据截断".to_string())?;
                 i += 1;
-                out.extend(std::iter::repeat(b).take((-n) as usize));
+                out.extend(std::iter::repeat(b).take((1 - n as i16) as usize));
             }
             _ => {}
         }
@@ -285,9 +286,16 @@ mod tests {
 
     #[test]
     fn packbits_字面量与重复() {
-        // 字面量 3 字节 + 重复 'A'×4 + 空操作(-128)
-        let src = [2, 1, 2, 3, 252u8, b'A', 128u8];
+        // 字面量 3 字节 + 重复 'A'×4（控制字节 253 = -3 → 1-n=4）+ 空操作(-128)
+        let src = [2, 1, 2, 3, 253u8, b'A', 128u8];
         assert_eq!(unpack_rle(&src, 7).unwrap(), vec![1, 2, 3, b'A', b'A', b'A', b'A']);
+    }
+
+    #[test]
+    fn packbits_重复上限128() {
+        // 控制字节 129（-127）→ 重复 1-n=128 次，这是规范上限
+        let src = [129u8, 7];
+        assert_eq!(unpack_rle(&src, 128).unwrap(), vec![7u8; 128]);
     }
 
     #[test]
