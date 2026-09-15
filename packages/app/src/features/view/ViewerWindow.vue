@@ -466,14 +466,11 @@ function onKey(e: KeyboardEvent) {
     case 'ArrowRight': step(1); break
     case 'Escape':
       // 逐层关闭浮层；无浮层时按设置最小化或退出程序。
-      // macOS 惯例：Esc 只关浮层，不最小化 / 退出窗口。
       if (ctx.show) ctx.show = false
       else if (modal.value) modal.value = null
       else if (showDetail.value) showDetail.value = false
-      else if (!isMac) {
-        if (settings.escClose) void getCurrentWindow().close()
-        else void getCurrentWindow().minimize()
-      }
+      else if (settings.escClose) void getCurrentWindow().close()
+      else void getCurrentWindow().minimize()
       break
     case 's': case 'S':
       if (e.ctrlKey || e.metaKey) {
