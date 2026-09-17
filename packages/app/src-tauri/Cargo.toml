@@ -42,4 +42,6 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 [target.'cfg(windows)'.dependencies]
 winreg = "0.55"
 # 原生 HEIC 解码（WIC）：版本与 tauri 依赖树对齐，避免重复编译
-windows = { version = "0.61", features = ["Win32_Graphics_Imaging", "Win32_System_Com", "Win32_UI_Shell"] }
+windows = { version = "0.61", features = ["Win32_Graphics_Imaging", "Win32_System_Com", "Win32_UI_Shell", "Win32_Foundation", "Win32_Security", "Win32_Security_Authorization", "Win32_System_Threading"] }
+# UserChoice 哈希（Win8+ 默认应用接管）输入里有一段 MD5
+md-5 = "0.10"
