@@ -24,6 +24,8 @@ export interface AppSettings {
   showInfo: boolean
   /** 无浮层时按 Esc：退出程序（true）还是最小化窗口（默认） */
   escClose: boolean
+  /** 删除图片前弹出二次确认（关闭后按 Delete 直接删除，文件仍进回收站） */
+  deleteConfirm: boolean
   /** 允许多开：改完后写入标记文件，下次启动生效（Rust 启动时读不到 localStorage） */
   allowMulti: boolean
   /** 详情抽屉里把 GPS 坐标解析成地名的服务（打开抽屉时才发一次请求，关闭则纯离线） */
@@ -43,6 +45,7 @@ const DEFAULTS: AppSettings = {
   outline: false,
   showInfo: false,
   escClose: false,
+  deleteConfirm: true,
   allowMulti: false,
   geoProvider: 'osm',
   amapKey: '',

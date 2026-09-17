@@ -51,6 +51,17 @@ pub(crate) fn list_dir_images(path: String) -> Vec<String> {
         .collect()
 }
 
+/// 删除图片文件：移入系统回收站（可找回，与资源管理器行为一致）。
+/// 二次确认由前端按设置决定，这里只负责删除本身。
+#[tauri::command]
+pub(crate) fn delete_image(path: String) -> Result<(), String> {
+    let p = PathBuf::from(&path);
+    if !p.is_file() {
+        return Err(format!("文件不存在：{path}"));
+    }
+    trash::delete(&p).map_err(|e| format!("删除失败：{e}"))
+}
+
 /// 读取 EXIF（失败或无 EXIF 时返回空）。跳过过长字段（如 MakerNote）避免污染面板。
 fn read_exif(path: &Path) -> Vec<ExifEntry> {
     let file = match std::fs::File::open(path) {

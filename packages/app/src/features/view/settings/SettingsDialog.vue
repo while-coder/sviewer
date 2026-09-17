@@ -126,6 +126,14 @@ watch(
                   <button :class="{ on: !settings.allowMulti }" @click="settings.allowMulti = false">关</button>
                 </div>
               </div>
+
+              <div class="row">
+                <span class="label">删除时二次确认<small>删除图片前弹出确认框；关闭后按 Delete 直接删除（文件进入系统回收站）</small></span>
+                <div class="seg">
+                  <button :class="{ on: settings.deleteConfirm }" @click="settings.deleteConfirm = true">开</button>
+                  <button :class="{ on: !settings.deleteConfirm }" @click="settings.deleteConfirm = false">关</button>
+                </div>
+              </div>
             </template>
 
             <template v-else-if="tab === 'view'">

@@ -11,6 +11,7 @@ import {
   readImageInfo,
   getLaunchFile,
   saveEditsTo,
+  deleteImage,
 } from '../../lib/bridge/bridge'
 import { resolveImage, preloadImage } from '../../lib/decode/decode'
 import { extOf, OPEN_FILTERS } from '../../lib/formats/formats'
@@ -392,6 +393,65 @@ function step(delta: number) {
   }
 }
 
+// ── 删除当前图片：移入回收站；是否二次确认由设置决定 ─────────
+const deleting = ref(false)
+// 删除确认弹窗（webview 内，与应用同主题；默认焦点在「删除」，
+// Enter 直接确认，左右键在两个按钮间切换焦点，Esc 取消）
+const confirmDel = ref(false)
+const confirmCancelBtn = ref<HTMLButtonElement | null>(null)
+const confirmDeleteBtn = ref<HTMLButtonElement | null>(null)
+async function deleteCurrent() {
+  const p = currentPath.value
+  // 其他弹层打开时不响应（误触破坏性操作）
+  if (!p || deleting.value || modal.value || confirmDel.value || ctx.show) return
+  if (settings.deleteConfirm) {
+    confirmDel.value = true
+    // 渲染后把焦点交给「删除」：Enter 即确认，与系统弹窗习惯一致
+    void nextTick(() => confirmDeleteBtn.value?.focus())
+    return
+  }
+  await performDelete()
+}
+/** 确认框打开时左右键在「取消 / 删除」之间切换焦点。 */
+function switchConfirmFocus() {
+  const target =
+    document.activeElement === confirmDeleteBtn.value ? confirmCancelBtn.value : confirmDeleteBtn.value
+  target?.focus()
+}
+/** 确认框点「删除」或按 Enter 后执行；删除成功后切换到相邻图片。 */
+async function performDelete() {
+  const p = currentPath.value
+  // deleting 重入锁：Enter 在按钮上会同时触发 keydown 和 click，防止删两次
+  if (!p || deleting.value) return
+  confirmDel.value = false
+  deleting.value = true
+  try {
+    await deleteImage(p)
+  } catch (e) {
+    console.error('删除失败', e)
+    window.alert(`删除失败：${e}`)
+    return
+  } finally {
+    deleting.value = false
+  }
+  // 从列表移除后显示相邻图片（优先下一张，末尾则上一张）；删空了回空状态
+  const i = index.value
+  const list = siblings.value.filter((s) => s !== p)
+  siblings.value = list
+  const next = list[Math.min(i, list.length - 1)] ?? null
+  if (next) void openPath(next, false)
+  else {
+    currentPath.value = null
+    imgSrc.value = ''
+    bitmap.value = null
+    info.value = null
+    loadError.value = ''
+    natural.w = 0
+    natural.h = 0
+    resetView()
+  }
+}
+
 // ── 视图变换（与编辑窗口共用 useImageView）──────────────
 const stageEl = ref<HTMLElement | null>(null)
 // 本次按下序列开始时是否处于「适应窗口」：拖拽会解除 fit，双击判断仍以按下前为准
@@ -461,6 +521,29 @@ async function toggleFullscreen() {
 
 // ── 键盘 ───────────────────────────────────────────────
 function onKey(e: KeyboardEvent) {
+  // 删除确认框打开时进入「弹窗模式」：屏蔽看图快捷键，只保留弹窗交互
+  if (confirmDel.value) {
+    switch (e.key) {
+      case 'Escape':
+        e.preventDefault()
+        confirmDel.value = false
+        break
+      case 'Enter':
+        e.preventDefault()
+        // 焦点在按钮上时交给浏览器 click（避免 keydown+click 双触发）
+        if (!(e.target instanceof HTMLButtonElement)) void performDelete()
+        break
+      case 'ArrowLeft': case 'ArrowRight':
+        e.preventDefault()
+        switchConfirmFocus()
+        break
+      case 'Tab':
+        break // 浏览器默认在两个按钮间移动焦点
+      default:
+        e.preventDefault() // 屏蔽切图/缩放/打开等其余快捷键
+    }
+    return
+  }
   switch (e.key) {
     case 'ArrowLeft': step(-1); break
     case 'ArrowRight': step(1); break
@@ -486,6 +569,9 @@ function onKey(e: KeyboardEvent) {
     case 'o': case 'O': void pickFile(); break
     case 'r': case 'R': rotate(); break
     case 'm': case 'M': mirror(); break
+    case 'Delete': void deleteCurrent(); break
+    // Mac 键盘的 delete 键发出的是 Backspace（Fn+Delete 才是 Delete）
+    case 'Backspace': void deleteCurrent(); break
     case 'F11': void toggleFullscreen(); break
   }
 }
@@ -670,6 +756,20 @@ onUnmounted(() => {
         <button class="ctx-item" @click="ctxAct(openAbout)">关于速阅</button>
       </nav>
     </div>
+
+    <!-- 删除确认（webview 内，与设置弹窗同一套遮罩语言；Enter 删除 / Esc 取消） -->
+    <transition name="fade">
+      <div v-if="confirmDel" class="confirm-backdrop" @mousedown.self="confirmDel = false">
+        <div class="confirm-box" role="alertdialog" aria-label="删除图片">
+          <p class="confirm-msg">确定删除「{{ info?.fileName ?? '当前图片' }}」吗？</p>
+          <p class="confirm-sub">文件将移入系统回收站，可随时找回</p>
+          <div class="confirm-actions">
+            <button ref="confirmCancelBtn" @click="confirmDel = false">取消</button>
+            <button ref="confirmDeleteBtn" class="danger" @click="performDelete">删除</button>
+          </div>
+        </div>
+      </div>
+    </transition>
 
     <!-- 设置弹窗：分类页定位见 settingsTab；打开时拉取格式关联状态在弹窗内部处理 -->
     <SettingsDialog
@@ -872,5 +972,30 @@ onUnmounted(() => {
 .ctx-item:disabled:hover { background: none; }
 .ctx-item .k { color: var(--fg-muted); font-size: 11px; }
 .ctx-sep { height: 1px; background: var(--border); margin: 5px 8px; }
+
+/* 删除确认弹窗：小面板居中，复用全局 fade 过渡 */
+.confirm-backdrop {
+  position: fixed; inset: 0; z-index: 30;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+}
+.confirm-box {
+  width: 320px; max-width: 88vw;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+.confirm-msg { margin: 0; font-weight: 600; word-break: break-all; }
+.confirm-sub { margin: 6px 0 0; font-size: 12px; color: var(--fg-muted); }
+.confirm-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.confirm-actions button {
+  background: none; border: 1px solid var(--border); color: var(--fg);
+  border-radius: 8px; padding: 5px 14px; cursor: pointer; font-size: 13px;
+}
+.confirm-actions button:hover { background: var(--hover); }
+.confirm-actions button.danger { background: #d5453f; border-color: #d5453f; color: #fff; }
+.confirm-actions button.danger:hover { background: #c23a34; }
 
 </style>

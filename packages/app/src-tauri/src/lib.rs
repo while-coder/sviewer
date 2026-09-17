@@ -68,6 +68,7 @@ pub fn run() {
             system::launch::set_multi_instance,
             view::info::list_dir_images,
             view::info::read_image_info,
+            view::info::delete_image,
             view::decode::decode_to_png,
             view::decode::decode_heic,
             view::decode::decode_raw,

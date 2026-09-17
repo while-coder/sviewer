@@ -15,6 +15,11 @@ export function listSiblings(path: string): Promise<string[]> {
   return invoke<string[]>('list_dir_images', { path })
 }
 
+/** 删除图片文件（移入系统回收站，可找回）。 */
+export function deleteImage(path: string): Promise<void> {
+  return invoke('delete_image', { path })
+}
+
 /** 把图片另存到目标路径（original 为原样复制，其余格式由 Rust 重编码）。 */
 export function saveImageAs(src: string, dest: string, format: SaveFormat): Promise<void> {
   return invoke('save_image_as', { src, dest, format })
