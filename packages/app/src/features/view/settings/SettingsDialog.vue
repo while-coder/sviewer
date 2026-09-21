@@ -9,6 +9,7 @@ import { computed, ref, watch } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { useTauriUpdater } from '@while-coder/tauri-updater-vue'
 import { settings } from '../../../lib/settings'
+import { alertError } from '../../../lib/notify'
 import AboutPage from './AboutPage.vue'
 
 export type SettingsTab = 'general' | 'view' | 'assoc' | 'about'
@@ -68,7 +69,7 @@ async function applyAssoc(exts: string[]) {
     await invoke('assoc_set', { exts })
     await loadAssoc()
   } catch (e) {
-    window.alert(`关联失败：${e}`)
+    await alertError('关联失败', e)
   } finally {
     assocBusy.value = false
   }

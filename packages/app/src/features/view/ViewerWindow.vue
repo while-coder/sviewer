@@ -16,6 +16,7 @@ import {
 import { resolveImage, preloadImage } from '../../lib/decode/decode'
 import { extOf, OPEN_FILTERS } from '../../lib/formats/formats'
 import { saveAsViaDialog } from '../../lib/bridge/save'
+import { alertError } from '../../lib/notify'
 import { useImageView } from '../../composables/use-image-view'
 import { useSaveability } from '../../composables/use-saveability'
 import { useThemeSync } from '../../composables/use-theme-sync'
@@ -80,8 +81,7 @@ async function openBatch() {
     resizable: true,
   })
     .once('tauri://error', (e) => {
-      console.error('打开批量转换窗口失败', e)
-      window.alert(`打开批量转换窗口失败：${e}`)
+      void alertError('打开批量转换窗口失败', e)
     })
 }
 
@@ -109,8 +109,7 @@ async function openEdit() {
     resizable: true,
   })
     .once('tauri://error', (e) => {
-      console.error('打开编辑窗口失败', e)
-      window.alert(`打开编辑窗口失败：${e}`)
+      void alertError('打开编辑窗口失败', e)
     })
 }
 
@@ -165,8 +164,7 @@ async function saveEdits() {
   try {
     await saveEditsTo(p, editsFromState())
   } catch (e) {
-    console.error('保存修改失败', e)
-    window.alert(`保存失败：${e}`)
+    await alertError('保存失败', e)
     return
   } finally {
     savingEdits.value = false
@@ -428,8 +426,7 @@ async function performDelete() {
   try {
     await deleteImage(p)
   } catch (e) {
-    console.error('删除失败', e)
-    window.alert(`删除失败：${e}`)
+    await alertError('删除失败', e)
     return
   } finally {
     deleting.value = false

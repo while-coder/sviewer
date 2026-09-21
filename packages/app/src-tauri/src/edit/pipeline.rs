@@ -20,6 +20,15 @@ pub(crate) struct CropRect {
     pub(crate) h: u32,
 }
 
+/// marks 字段容错：serde 的 `default` 只在字段「缺失」时生效，前端显式传
+/// `null` 会整体反序列化失败（表现为保存静默报错），这里把 null 也归为空。
+fn vec_or_empty<'de, D>(d: D) -> Result<Vec<Mark>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Ok(<Option<Vec<Mark>> as serde::Deserialize>::deserialize(d)?.unwrap_or_default())
+}
+
 /// 一次编辑/转换的完整参数。crop/resize/quality 为 None 即不做该步。
 #[derive(Default, serde::Deserialize)]
 #[serde(rename_all = "camelCase", default)]
@@ -29,7 +38,7 @@ pub(crate) struct ImageEdits {
     pub(crate) crop: Option<CropRect>,
     pub(crate) resize: Option<(u32, u32)>,
     pub(crate) quality: Option<u8>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "vec_or_empty")]
     pub(crate) marks: Vec<Mark>,
 }
 

@@ -17,6 +17,7 @@ import { readImageInfo, saveEditsTo } from '../../lib/bridge/bridge'
 import { resolveImageSrc } from '../../lib/decode/decode'
 import { SAVE_FORMAT_OPTIONS } from '../../lib/formats/formats'
 import { saveAsViaDialog } from '../../lib/bridge/save'
+import { alertError } from '../../lib/notify'
 import type { SaveFormat, ImageEdits, CropRect, MarkShape } from '../../lib/types'
 import { settings } from '../../lib/settings'
 import { useImageView } from '../../composables/use-image-view'
@@ -412,7 +413,8 @@ function editsFromState(): ImageEdits {
         : null,
     resize,
     quality: editOutput.format === 'jpeg' ? editOutput.quality : null,
-    marks: marks.value.length ? marks.value : null,
+    // 必须传数组：Rust 侧 marks 是 Vec<Mark>，serde 只认「缺失」不认 null
+    marks: marks.value,
   }
 }
 
@@ -432,8 +434,7 @@ async function saveEdits() {
   try {
     await saveEditsTo(p, editsFromState())
   } catch (e) {
-    console.error('保存修改失败', e)
-    window.alert(`保存失败：${e}`)
+    await alertError('保存失败', e)
     return
   } finally {
     savingEdits.value = false
@@ -485,9 +486,6 @@ function setCropField(k: keyof CropRect, v: number) {
   c.w = Math.min(Math.max(1, c.w), b.w - c.x)
   c.h = Math.min(Math.max(1, c.h), b.h - c.y)
   edit.crop = c
-}
-function cropWhole() {
-  edit.crop = { x: 0, y: 0, w: cropBase.value.w, h: cropBase.value.h }
 }
 
 const resizeW = computed(() => edit.resize?.w ?? cropBase.value.w)
@@ -692,7 +690,8 @@ onUnmounted(() => {
         <div v-if="loading" class="loading">解码中…</div>
 
         <!-- 裁剪就绪提示：告诉用户框选完成后下一步做什么 -->
-        <div v-if="edit.crop && tool !== 'crop' && natural.w" class="crop-toast">
+        <!-- @pointerdown.stop：不拦的话 stage 会捕获指针，按钮收不到 click（表现为点了没反应） -->
+        <div v-if="edit.crop && tool !== 'crop' && natural.w" class="crop-toast" @pointerdown.stop>
           <span>裁剪 {{ Math.round(edit.crop.w) }} × {{ Math.round(edit.crop.h) }} 已就绪，保存时生效</span>
           <button class="ep-btn" @click="tool = 'crop'">重新框选</button>
           <button class="ep-btn" @click="edit.crop = null">清除</button>
@@ -708,7 +707,6 @@ onUnmounted(() => {
               {{ tool === 'crop' ? '框选中' : '框选' }}
             </button>
             <button class="ep-btn" :disabled="!edit.crop" @click="edit.crop = null">清除</button>
-            <button class="ep-btn" @click="cropWhole">全图</button>
           </div>
           <div class="ep-nums">
             <label>X <input type="number" min="0" :value="edit.crop ? Math.round(edit.crop.x) : ''" :disabled="!edit.crop" @change="setCropField('x', +($event.target as HTMLInputElement).value)" /></label>
