@@ -7,6 +7,7 @@ Exec={{exec}} %f
 StartupWMClass={{exec}}
 Icon={{icon}}
 Name={{name}}
+Name[zh]=速阅
 Terminal=false
 Type=Application
 MimeType={{mime_type}}

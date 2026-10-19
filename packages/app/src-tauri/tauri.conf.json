@@ -35,7 +35,7 @@
     "active": true,
     "publisher": "while",
     "macOS": {
-      "bundleName": "速阅"
+      "bundleName": "SViewer"
     },
     "createUpdaterArtifacts": true,
     "targets": [

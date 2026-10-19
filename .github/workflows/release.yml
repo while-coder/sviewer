@@ -59,6 +59,7 @@ jobs:
     uses: while-coder/workflows/.github/workflows/tauri-updater-manifest.yml@main
     with:
       product-prefix: sviewer
+      source-product-name: SViewer
       tag-name: ${{ needs.check.outputs.tag }}
       version: ${{ needs.check.outputs.version }}
       release-notes: ${{ needs.check.outputs.notes }}

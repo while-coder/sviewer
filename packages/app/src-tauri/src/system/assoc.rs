@@ -238,6 +238,7 @@ mod imp {
         let (app, _) = hkcu
             .create_subkey("Software\\Classes\\Applications\\sviewer.exe")
             .map_err(reg_err)?;
+        app.set_value("FriendlyAppName", &"速阅").map_err(reg_err)?;
         let (appopen, _) = app
             .create_subkey("shell\\open\\command")
             .map_err(reg_err)?;
@@ -261,10 +262,10 @@ mod imp {
         let (ra, _) = hkcu
             .create_subkey("Software\\RegisteredApplications")
             .map_err(reg_err)?;
-        ra.set_value("速阅", &"Software\\SViewer\\Capabilities")
+        ra.set_value("SViewer", &"Software\\SViewer\\Capabilities")
             .map_err(reg_err)?;
-        // 清掉旧版用英文名注册的条目，避免「设置 → 默认应用」里出现两个
-        let _ = ra.delete_value("SViewer");
+        // 清理旧版误用中文显示名创建的注册条目，保留稳定的英文标识。
+        let _ = ra.delete_value("速阅");
 
         Ok(())
     }
@@ -304,7 +305,7 @@ mod imp {
     /// 4. 兜底 ProgID 原文。
     fn progid_app(progid: &str) -> String {
         if progid == PROG_ID {
-            return "SViewer".into();
+            return "速阅".into();
         }
         let root = RegKey::predef(HKEY_CLASSES_ROOT);
         if let Ok(k) = root.open_subkey(progid) {

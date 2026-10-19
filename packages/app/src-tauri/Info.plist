@@ -7,20 +7,20 @@
     （Hide / Hide Others / Show All / Quit 等）由系统按「用户语言 ∩ 应用声明语言」
     出标题——不声明中文时，简中文系统上也会显示英文。声明 zh-Hans 后即显示
     「隐藏速阅 / 退出速阅」等。
-  - CFBundleDisplayName：Finder / Dock 里的显示名（速阅.app）。
-    包文件名仍由 productName（SViewer）决定，安装路径与更新器产物名不受影响，
-    不会出现新旧两个应用。
+  - CFBundleDisplayName：默认显示名为 SViewer，中文显示名由
+    infoplist/zh-Hans.lproj/InfoPlist.strings 提供。
+    .app 包文件名由 tauri.conf.json 的 productName 决定，保持「SViewer.app」。
 -->
 <plist version="1.0">
   <dict>
     <key>CFBundleDevelopmentRegion</key>
-    <string>zh-Hans</string>
+    <string>en</string>
     <key>CFBundleLocalizations</key>
     <array>
       <string>zh-Hans</string>
       <string>en</string>
     </array>
     <key>CFBundleDisplayName</key>
-    <string>速阅</string>
+    <string>SViewer</string>
   </dict>
 </plist>
